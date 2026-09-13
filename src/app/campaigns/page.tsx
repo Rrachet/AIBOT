@@ -1,0 +1,2 @@
+import { SectionPage } from '@/components/section-page';
+export default function CampaignsPage(){return <SectionPage active="Campaigns" eyebrow="Outbound engine" title="Campaigns" subtitle="Choose a lead list and put your AI agent to work." action="New campaign"><div className="card"><div className="empty"><div className="empty-icon">⌁</div><strong>No campaigns yet</strong><span>Import leads, choose an AI agent, and your first campaign can start here.</span></div></div></SectionPage>}
