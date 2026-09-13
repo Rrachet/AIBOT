@@ -1,0 +1,2 @@
+import { SectionPage } from '@/components/section-page';
+export default function CallsPage(){return <SectionPage active="Calls" eyebrow="Voice activity" title="Calls" subtitle="Every AI call, outcome and follow-up in one place."><div className="card"><div className="empty"><div className="empty-icon">◔</div><strong>No calls yet</strong><span>Calls will appear here once a campaign starts using a connected voice provider.</span></div></div></SectionPage>}
