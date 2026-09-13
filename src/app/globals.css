@@ -1619,6 +1619,162 @@ a.quick-card:hover {
   }
 }
 
+/* Lead import. Reuses the Add lead dialog shell; only the step content is new. */
+.import-dialog {
+  width: min(680px, calc(100vw - 32px));
+}
+
+.import-drop {
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 30px 20px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.import-drop.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.import-drop strong {
+  font-size: 13.5px;
+}
+
+.import-drop > span:not(.empty-icon) {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.import-drop .secondary-button {
+  margin-top: 10px;
+}
+
+.import-steps {
+  margin-top: 18px;
+}
+
+.import-busy {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 34px 20px;
+}
+
+.import-busy p {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+}
+
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  margin-bottom: 16px;
+}
+
+.import-file-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.import-file-copy strong {
+  display: block;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-file-copy > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.import-note {
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid #f3e2bf;
+  margin-bottom: 16px;
+}
+
+.import-sample {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.import-sample .card-subtitle {
+  padding: 10px 14px;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.import-sample .table {
+  min-width: 480px;
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.import-tile {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  background: var(--surface-soft);
+}
+
+.import-tile > span:last-child {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.import-summary-line {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+}
+
+.import-issues {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.import-issue-group .notes {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .import-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* 8b. Authentication (login screens) ------------------------------------- */
 
 /* Authentication */
