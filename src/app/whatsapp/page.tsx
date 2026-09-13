@@ -1,0 +1,2 @@
+import { SectionPage } from '@/components/section-page';
+export default function WhatsAppPage(){return <SectionPage active="WhatsApp" eyebrow="Follow-up channel" title="WhatsApp" subtitle="Turn missed calls into conversations without losing context."><div className="card"><div className="empty"><div className="empty-icon">◌</div><strong>WhatsApp is not connected</strong><span>Connect an official WhatsApp Business account later to enable no-answer follow-ups.</span></div></div></SectionPage>}
