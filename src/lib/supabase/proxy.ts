@@ -5,10 +5,11 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  const pathname = request.nextUrl.pathname
+  const isPublic = pathname === '/login' || pathname.startsWith('/auth/')
+  const isApi = pathname.startsWith('/api/')
 
-  if (!url || !key) {
-    return response
-  }
+  if (!url || !key) return response
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -18,16 +19,29 @@ export async function updateSession(request: NextRequest) {
       setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
         response = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options)
-        })
-        Object.entries(headers).forEach(([name, value]) => {
-          response.headers.set(name, value)
-        })
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+        Object.entries(headers).forEach(([name, value]) => response.headers.set(name, value))
       },
     },
   })
 
-  await supabase.auth.getClaims()
+  const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims
+
+  if (!claims && !isPublic && !isApi) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  if (claims && pathname === '/login') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  if (!claims && isApi) {
+    return NextResponse.json({ error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, { status: 401 })
+  }
+
   return response
 }
