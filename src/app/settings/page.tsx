@@ -1,2 +1,59 @@
+import type { Metadata } from 'next';
 import { SectionPage } from '@/components/section-page';
-export default function SettingsPage(){return <SectionPage active="Settings" eyebrow="Workspace" title="Settings" subtitle="Manage your workspace, channels and AI configuration."><div className="card"><div className="card-head"><div><div className="card-title">Workspace</div><div className="card-subtitle">Basic information for your AIBOT account</div></div></div><div style={{padding:20,display:'grid',gap:14,maxWidth:620}}><label style={{fontSize:12,fontWeight:600}}>Workspace name<input defaultValue="Thrii Workspace" style={{display:'block',width:'100%',marginTop:7,height:42,border:'1px solid var(--border)',borderRadius:9,padding:'0 12px',outline:'none'}} /></label><label style={{fontSize:12,fontWeight:600}}>Business description<input defaultValue="AI-powered lead engagement" style={{display:'block',width:'100%',marginTop:7,height:42,border:'1px solid var(--border)',borderRadius:9,padding:'0 12px',outline:'none'}} /></label><button className="primary-button" style={{width:'fit-content'}}>Save changes</button></div></div></SectionPage>}
+import { Card, CardHeader } from '@/components/ui/card';
+import { WORKSPACE } from '@/lib/demo-data';
+
+export const metadata: Metadata = { title: 'Settings' };
+
+/**
+ * Only the Workspace section is exposed. Team, AI, Calling, WhatsApp and
+ * Integrations are added here as each one is actually implemented — an empty
+ * settings tab is worse than no tab.
+ */
+export default function SettingsPage() {
+  return (
+    <SectionPage
+      eyebrow="Workspace"
+      title="Settings"
+      subtitle="Manage your workspace details."
+    >
+      <Card>
+        <CardHeader title="Workspace" subtitle="Basic information for your AIBOT account" />
+        <div className="card-body">
+          <div className="form-grid">
+            <label className="field">
+              <span className="field-label">Workspace name</span>
+              <input
+                className="field-input"
+                name="workspaceName"
+                defaultValue={WORKSPACE.name}
+                autoComplete="organization"
+              />
+            </label>
+
+            <label className="field">
+              <span className="field-label">Business description</span>
+              <textarea
+                className="field-textarea"
+                name="businessDescription"
+                defaultValue="AI-powered lead engagement"
+              />
+              <span className="field-hint">
+                Your AI agents use this as background context on a call.
+              </span>
+            </label>
+
+            <div className="form-actions">
+              <button type="button" className="primary-button" disabled>
+                Save changes
+              </button>
+              <span className="field-hint" style={{ marginTop: 0 }}>
+                Saving is enabled once this workspace is connected to a database.
+              </span>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </SectionPage>
+  );
+}
