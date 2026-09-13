@@ -19,6 +19,69 @@ Future lead sources (Meta Lead Ads, website forms, CRMs) will enter the same nor
 - No fake successful calls or messages when an external provider is unavailable.
 - V1 exposes only the functionality needed for manual lead operations.
 
+## UI layer (Phase 1)
+
+The interface is built and reviewable before any backend exists. No page calls a
+network, and nothing is faked as connected.
+
+### Structure
+
+```text
+src/
+  app/                  routes (server components) + globals.css
+    leads/components/   route-local client components
+  components/
+    app-shell.tsx       sidebar, topbar, mobile drawer  (client)
+    section-page.tsx    standard page layout            (server)
+    icons.tsx           typed icon set -> IconName
+    ui/                 Card, StatCard, Badge, DataTable, EmptyState
+  config/navigation.ts  single source of truth for nav + breadcrumb
+  lib/status.ts         domain status -> label + badge tone
+  lib/demo-data.ts      PLACEHOLDER SAMPLE DATA - delete in Phase 3
+  domain/types.ts       shared domain types
+  server/providers/     provider boundaries (voice today)
+```
+
+### Conventions
+
+- **Navigation is derived, never declared.** `AppShell` resolves the active item
+  from `usePathname()` against `config/navigation.ts`. Pages do not say which nav
+  entry they belong to, so the two cannot drift apart.
+- **Status colour comes from the domain.** Views read `LEAD_STATUS_DISPLAY`,
+  `CALL_STATUS_DISPLAY` and `CALL_OUTCOME_DISPLAY` in `lib/status.ts`, keyed by the
+  unions in `domain/types.ts`. Adding a status to a union fails the type-check
+  until it is given a label and tone. Never hard-code a status string in a view.
+- **Pages stay server components.** Interactivity is pushed into small client
+  components (`app-shell.tsx`, `leads/components/leads-table.tsx`).
+- **Styling is plain CSS** in `app/globals.css`, organised into numbered sections
+  with design tokens on `:root`. There is no CSS framework, and none is needed.
+  Every text token meets WCAG AA on its surface; the smallest rendered text is 11px.
+- **Empty states are product-facing.** They say what the area does and how to fill
+  it. They never mention implementation status or internal phases.
+
+### Sample data
+
+`src/lib/demo-data.ts` exists only so the interface can be designed and reviewed
+before Phase 3. It is static, clearly marked, and surfaced in the topbar as a
+"Sample data" pill so it is never mistaken for live workspace data.
+
+When Supabase lands, replace each import with a workspace-scoped query and delete
+the file. A clean `npm run typecheck` afterwards proves no view still depends on it.
+
+### Not yet wired
+
+These render as real UI but perform no action until their phase lands: page-level
+buttons (Add lead, Import CSV or Excel, Create agent, New campaign, Export report),
+topbar search and notifications, and the workspace switcher. Controls that will
+stay unavailable for a while are explicitly `disabled` with a reason beside them
+(Connect WhatsApp, Save changes) rather than silently doing nothing.
+
+### Tooling note
+
+There is no ESLint setup. `next lint` was removed in Next.js 16, so the old
+`lint` script was deleted rather than left failing. Adding ESLint's flat config
+(`eslint` + `eslint-config-next`) is a reasonable Phase 2 task.
+
 ## Planned stack
 
 - Next.js + TypeScript

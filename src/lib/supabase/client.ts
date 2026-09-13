@@ -1,12 +1,12 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { requireSupabaseEnv } from './env'
 
+/**
+ * Browser Supabase client. Uses the publishable key only and stores the
+ * session in cookies (the @supabase/ssr default) so the server sees the same
+ * session — never localStorage.
+ */
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables')
-  }
-
+  const { url, key } = requireSupabaseEnv()
   return createBrowserClient(url, key)
 }

@@ -1,14 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { requireSupabaseEnv } from './env'
 
+/**
+ * Server Supabase client for Server Components, Server Actions and Route
+ * Handlers. Reads and writes the session through the request cookie store, so
+ * the browser session and the server session are always the same session.
+ *
+ * Throws `SupabaseConfigError` when Supabase is not configured; callers decide
+ * how to surface that.
+ */
 export async function createClient() {
   const cookieStore = await cookies()
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables')
-  }
+  const { url, key } = requireSupabaseEnv()
 
   return createServerClient(url, key, {
     cookies: {
@@ -21,7 +25,14 @@ export async function createClient() {
             cookieStore.set(name, value, options)
           })
         } catch {
-          // Server Components cannot always write cookies. The proxy refreshes them.
+          // Server Components cannot write cookies. This is expected: the
+          // proxy refreshes the session on every matched request, so a token
+          // refreshed during rendering is persisted there instead.
+          //
+          // The library also hands `setAll` the no-store cache headers it
+          // wants on responses that carry refreshed auth cookies. They are not
+          // applied here because `cookies()` cannot set response headers; the
+          // proxy applies them on the responses it returns.
         }
       },
     },
