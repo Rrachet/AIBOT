@@ -5,13 +5,10 @@ const messages: Record<string, string> = {
   invalid_signup: 'Use a valid email and a password with at least 8 characters.',
   signup_failed: 'We could not create your account. The email may already be registered.',
   check_email: 'Account created. Check your email to confirm your account before signing in.',
+  confirmation_failed: 'That confirmation link is invalid or has expired. Request a new signup email.',
 }
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const error = typeof params.error === 'string' ? messages[params.error] : undefined
   const message = typeof params.message === 'string' ? messages[params.message] : undefined
@@ -31,36 +28,18 @@ export default async function LoginPage({
 
         <form className="auth-form" action={login}>
           <input type="hidden" name="next" value={next} />
-          <label>
-            Email
-            <input name="email" type="email" placeholder="you@company.com" autoComplete="email" required />
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" placeholder="••••••••" autoComplete="current-password" required />
-          </label>
+          <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
+          <label>Password<input name="password" type="password" placeholder="••••••••" autoComplete="current-password" required /></label>
           <button type="submit" className="auth-primary">Sign in</button>
         </form>
 
         <details className="auth-signup">
           <summary>New to AIBOT? Create an account</summary>
           <form className="auth-form" action={signup}>
-            <label>
-              Your name
-              <input name="fullName" type="text" placeholder="Amar Mishra" autoComplete="name" />
-            </label>
-            <label>
-              Workspace name
-              <input name="workspaceName" type="text" placeholder="Your company" />
-            </label>
-            <label>
-              Email
-              <input name="email" type="email" placeholder="you@company.com" autoComplete="email" required />
-            </label>
-            <label>
-              Password
-              <input name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" minLength={8} required />
-            </label>
+            <label>Your name<input name="fullName" type="text" placeholder="Your name" autoComplete="name" /></label>
+            <label>Workspace name<input name="workspaceName" type="text" placeholder="Your company" /></label>
+            <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
+            <label>Password<input name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" minLength={8} required /></label>
             <button type="submit" className="auth-secondary">Create account</button>
           </form>
         </details>
