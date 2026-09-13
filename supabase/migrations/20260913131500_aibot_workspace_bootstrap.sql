@@ -1,0 +1,6 @@
+create schema if not exists private;
+create or replace function private.handle_new_user_workspace() returns trigger language plpgsql security definer set search_path = public as $$ declare wid uuid; wname text; bslug text; wslug text; n integer := 0; begin wname := coalesce(nullif(trim(new.raw_user_meta_data->>'workspace_name'), ''), nullif(trim(new.raw_user_meta_data->>'full_name'), ''), split_part(new.email, '@', 1), 'My Workspace'); bslug := lower(regexp_replace(wname, '[^a-zA-Z0-9]+', '-', 'g')); bslug := trim(both '-' from bslug); if bslug = '' then bslug := 'workspace'; end if; wslug := bslug; while exists (select 1 from public.workspaces where slug = wslug) loop n := n + 1; wslug := bslug || '-' || n::text; end loop; insert into public.workspaces(name, slug) values (wname, wslug) returning id into wid; insert into public.workspace_members(workspace_id, user_id, role) values (wid, new.id, 'owner'); return new; end; $$;
+revoke all on function private.handle_new_user_workspace() from public, anon, authenticated;
+grant execute on function private.handle_new_user_workspace() to supabase_auth_admin;
+drop trigger if exists on_auth_user_created_workspace on auth.users;
+create trigger on_auth_user_created_workspace after insert on auth.users for each row execute function private.handle_new_user_workspace();
