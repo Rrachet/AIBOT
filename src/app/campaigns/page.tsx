@@ -4,6 +4,7 @@ import { SectionPage } from '@/components/section-page';
 import { Icon } from '@/components/icons';
 import { Card, CardHeader } from '@/components/ui/card';
 import { DEMO_CAMPAIGNS } from '@/lib/demo-data';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'Campaigns' };
 
@@ -18,7 +19,9 @@ const BREAKDOWN_FIELDS = [
   { key: 'followUp', label: 'Follow-up' },
 ] as const;
 
-export default function CampaignsPage() {
+export default async function CampaignsPage() {
+  await requireUser('/campaigns');
+
   return (
     <SectionPage
       eyebrow="Outbound engine"

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SectionPage } from '@/components/section-page';
 import { Card, CardHeader } from '@/components/ui/card';
 import { WORKSPACE } from '@/lib/demo-data';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'Settings' };
 
@@ -10,7 +11,9 @@ export const metadata: Metadata = { title: 'Settings' };
  * Integrations are added here as each one is actually implemented — an empty
  * settings tab is worse than no tab.
  */
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireUser('/settings');
+
   return (
     <SectionPage
       eyebrow="Workspace"

@@ -2,10 +2,13 @@ import type { Metadata } from 'next';
 import { SectionPage } from '@/components/section-page';
 import { Icon } from '@/components/icons';
 import { Card, CardHeader } from '@/components/ui/card';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'WhatsApp' };
 
-export default function WhatsAppPage() {
+export default async function WhatsAppPage() {
+  await requireUser('/whatsapp');
+
   return (
     <SectionPage
       eyebrow="Follow-up channel"

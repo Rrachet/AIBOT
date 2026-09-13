@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireUser } from '@/lib/auth/require-user';
 import { SectionPage } from '@/components/section-page';
 import { Icon } from '@/components/icons';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -21,7 +22,9 @@ const LEAD_COLUMNS = [
   { key: 'updated', header: 'Updated' },
 ] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  await requireUser('/');
+
   const completedSteps = SETUP_STEPS.filter((step) => step.done).length;
   const setupComplete = completedSteps === SETUP_STEPS.length;
   const nextStep = SETUP_STEPS.find((step) => !step.done);

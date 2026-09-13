@@ -406,6 +406,32 @@ button:disabled {
   background: var(--surface-soft);
 }
 
+.sidebar-signout {
+  margin-top: 8px;
+}
+
+.sidebar-signout-button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-signout-button:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
 .sidebar-help strong {
   font-size: 12px;
   display: block;
@@ -1668,8 +1694,14 @@ a.quick-card:hover {
     display: none;
   }
 
-  .nav a span:not(.nav-icon) {
+  .nav a span:not(.nav-icon),
+  .sidebar-signout-button span:not(.nav-icon) {
     display: none;
+  }
+
+  .sidebar-signout-button {
+    justify-content: center;
+    padding: 0;
   }
 
   .workspace {

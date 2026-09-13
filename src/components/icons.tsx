@@ -76,6 +76,12 @@ const ICON_PATHS = {
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   close: <path d="M18 6 6 18M6 6l12 12" />,
+  signout: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5M21 12H9" />
+    </>
+  ),
   check: <path d="m20 6-11 11-5-5" />,
   'check-circle': (
     <>

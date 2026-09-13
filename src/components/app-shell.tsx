@@ -125,6 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <strong>Build your first campaign</strong>
             <span>Import leads, choose an agent, and start your first AI call.</span>
           </div>
+          <SignOutButton />
         </div>
       </aside>
 
@@ -201,9 +202,29 @@ export function AppShell({ children }: { children: ReactNode }) {
             <nav className="nav" aria-label="Main">
               {navLinks(closeDrawer)}
             </nav>
+            <div className="sidebar-bottom">
+              <SignOutButton />
+            </div>
           </div>
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Ends the session. A form POST to the sign-out route rather than a link, so a
+ * prefetch or a stray GET can never sign the user out.
+ */
+function SignOutButton() {
+  return (
+    <form action="/auth/signout" method="post" className="sidebar-signout">
+      <button type="submit" className="sidebar-signout-button">
+        <span className="nav-icon">
+          <Icon name="signout" size={16} />
+        </span>
+        <span>Sign out</span>
+      </button>
+    </form>
   );
 }

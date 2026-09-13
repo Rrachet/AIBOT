@@ -14,7 +14,7 @@ import { LeadsTableSkeleton } from './leads-table-skeleton';
 type LoadState =
   | { phase: 'loading' }
   | { phase: 'ready'; leads: Lead[] }
-  | { phase: 'error'; message: string; isAuthError: boolean };
+  | { phase: 'error'; title: string; message: string; canRetry: boolean; needsSignIn: boolean };
 
 export function LeadsView() {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
@@ -32,13 +32,40 @@ export function LeadsView() {
       setState({ phase: 'ready', leads });
     } catch (error) {
       if (signal?.aborted || requestRef.current !== requestId) return;
+      // Each failure needs a different remedy, so they are not collapsed into
+      // one generic message: signing in again fixes an expired session but not
+      // a workspace or configuration problem.
       const apiError = error instanceof LeadApiError ? error : null;
-      setState({
-        phase: 'error',
-        message:
-          apiError?.message ?? 'We could not reach the server. Check your connection and try again.',
-        isAuthError: apiError?.isAuthError ?? false,
-      });
+
+      if (apiError?.isAuthError) {
+        setState({
+          phase: 'error',
+          title: 'Your session has expired',
+          message: 'Sign in again to continue working in this workspace.',
+          canRetry: false,
+          needsSignIn: true,
+        });
+      } else if (apiError?.isWorkspaceError) {
+        setState({
+          phase: 'error',
+          title: 'No workspace available',
+          message: apiError.message,
+          canRetry: false,
+          needsSignIn: false,
+        });
+      } else {
+        setState({
+          phase: 'error',
+          title: apiError?.isConfigError
+            ? 'This server is not configured'
+            : 'We could not load your leads',
+          message:
+            apiError?.message ??
+            'We could not reach the server. Check your connection and try again.',
+          canRetry: !apiError?.isConfigError,
+          needsSignIn: false,
+        });
+      }
     }
   }, []);
 
@@ -97,18 +124,18 @@ export function LeadsView() {
         <Card>
           <EmptyState
             icon="alert"
-            title={state.isAuthError ? 'Your session has expired' : 'We could not load your leads'}
+            title={state.title}
             description={state.message}
             actions={
-              state.isAuthError ? (
+              state.needsSignIn ? (
                 <a className="primary-button" href="/login?next=/leads">
                   Sign in again
                 </a>
-              ) : (
+              ) : state.canRetry ? (
                 <button type="button" className="secondary-button" onClick={() => void load()}>
                   Try again
                 </button>
-              )
+              ) : null
             }
           />
         </Card>

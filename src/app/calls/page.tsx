@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/ui/badge';
 import { DataTable, EntityCell } from '@/components/ui/data-table';
 import { CALL_OUTCOME_DISPLAY, CALL_STATUS_DISPLAY, formatDuration, initials } from '@/lib/status';
 import { DEMO_CALLS } from '@/lib/demo-data';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'Calls' };
 
@@ -17,7 +18,9 @@ const COLUMNS = [
   { key: 'outcome', header: 'Outcome' },
 ] as const;
 
-export default function CallsPage() {
+export default async function CallsPage() {
+  await requireUser('/calls');
+
   return (
     <SectionPage
       eyebrow="Voice activity"

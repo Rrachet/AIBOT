@@ -93,9 +93,22 @@ export class LeadApiError extends Error {
     this.fieldErrors = options.fieldErrors ?? {}
   }
 
-  /** A stale or missing session; the caller should send the user to sign in. */
+  /** A missing or expired session; the caller should send the user to sign in. */
   get isAuthError(): boolean {
-    return this.status === 401 || this.status === 403
+    return this.status === 401
+  }
+
+  /**
+   * Signed in, but the account cannot use this workspace. Signing in again
+   * will not help, so the UI must not offer that as the fix.
+   */
+  get isWorkspaceError(): boolean {
+    return this.status === 403
+  }
+
+  /** The server is missing its Supabase configuration. */
+  get isConfigError(): boolean {
+    return this.code === 'SUPABASE_NOT_CONFIGURED'
   }
 }
 

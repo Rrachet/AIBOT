@@ -3,10 +3,13 @@ import { SectionPage } from '@/components/section-page';
 import { Icon } from '@/components/icons';
 import { Card, CardHeader } from '@/components/ui/card';
 import { DEMO_AGENTS } from '@/lib/demo-data';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'AI Agents' };
 
-export default function AgentsPage() {
+export default async function AgentsPage() {
+  await requireUser('/agents');
+
   return (
     <SectionPage
       eyebrow="AI workforce"

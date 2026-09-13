@@ -6,6 +6,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { DataTable } from '@/components/ui/data-table';
 import { formatDuration } from '@/lib/status';
 import { DEMO_AGENT_PERFORMANCE, DEMO_ANALYTICS_METRICS } from '@/lib/demo-data';
+import { requireUser } from '@/lib/auth/require-user';
 
 export const metadata: Metadata = { title: 'Analytics' };
 
@@ -17,7 +18,9 @@ const COLUMNS = [
   { key: 'duration', header: 'Avg. duration', numeric: true },
 ] as const;
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  await requireUser('/analytics');
+
   return (
     <SectionPage
       eyebrow="Performance"

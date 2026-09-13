@@ -6,6 +6,10 @@ const messages: Record<string, string> = {
   signup_failed: 'We could not create your account. The email may already be registered.',
   check_email: 'Account created. Check your email to confirm your account before signing in.',
   confirmation_failed: 'That confirmation link is invalid or has expired. Request a new signup email.',
+  configuration_error:
+    'This AIBOT server is not configured to sign you in yet. Set the Supabase environment variables and restart it.',
+  session_not_established:
+    'Your credentials were accepted but the session could not be stored. Check that cookies are enabled and try again.',
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
