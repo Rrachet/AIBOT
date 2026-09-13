@@ -1,0 +1,13 @@
+create or replace function public.is_workspace_member(target_workspace uuid) returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from public.workspace_members wm where wm.workspace_id = target_workspace and wm.user_id = auth.uid()); $$;
+revoke execute on function public.is_workspace_member(uuid) from anon, public;
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+create policy workspace_members_read on public.workspace_members for select using (user_id = auth.uid() or public.is_workspace_member(workspace_id));
+create policy workspace_read on public.workspaces for select using (public.is_workspace_member(id));
+create policy workspace_update on public.workspaces for update using (exists (select 1 from public.workspace_members wm where wm.workspace_id = id and wm.user_id = auth.uid() and wm.role in ('owner','admin')));
+create policy agents_all on public.agents for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
+create policy leads_all on public.leads for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
+create policy campaigns_all on public.campaigns for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
+create policy campaign_leads_all on public.campaign_leads for all using (exists (select 1 from public.campaigns c where c.id = campaign_id and public.is_workspace_member(c.workspace_id))) with check (exists (select 1 from public.campaigns c where c.id = campaign_id and public.is_workspace_member(c.workspace_id)));
+create policy calls_all on public.calls for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
+create policy follow_ups_all on public.follow_ups for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
+create policy lead_activities_all on public.lead_activities for all using (public.is_workspace_member(workspace_id)) with check (public.is_workspace_member(workspace_id));
