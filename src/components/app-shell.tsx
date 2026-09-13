@@ -1,0 +1,40 @@
+import Link from 'next/link';
+import { Icon } from './icons';
+
+const nav = [
+  ['Overview', '/', 'grid'],
+  ['Leads', '/leads', 'users'],
+  ['AI Agents', '/agents', 'bot'],
+  ['Campaigns', '/campaigns', 'megaphone'],
+  ['Calls', '/calls', 'phone'],
+  ['WhatsApp', '/whatsapp', 'message'],
+  ['Analytics', '/analytics', 'chart'],
+  ['Settings', '/settings', 'settings'],
+] as const;
+
+export function AppShell({ children, active = 'Overview' }: { children: React.ReactNode; active?: string }) {
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand"><div className="brand-mark">AI</div><div className="brand-name">AIBOT</div></div>
+        <div className="workspace">
+          <div className="workspace-avatar">T</div>
+          <div className="workspace-copy"><strong>Thrii Workspace</strong><span>Personal workspace</span></div>
+          <span className="muted">⌄</span>
+        </div>
+        <div className="nav-label">Workspace</div>
+        <nav className="nav">
+          {nav.map(([label, href, icon]) => <Link key={label} href={href} className={active === label ? 'active' : ''}><span className="nav-icon"><Icon name={icon} size={16} /></span><span>{label}</span></Link>)}
+        </nav>
+        <div className="sidebar-bottom"><div className="sidebar-help"><strong>Build your first campaign</strong><span>Import leads, choose an agent, and start your first AI call.</span></div></div>
+      </aside>
+      <div className="main">
+        <header className="topbar">
+          <div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="Menu"><Icon name="menu" size={17}/></button><span style={{marginLeft:8}}>Workspace / </span><strong>{active}</strong></div>
+          <div className="top-actions"><button className="icon-button" aria-label="Search"><Icon name="search" size={16}/></button><button className="icon-button" aria-label="Notifications"><Icon name="bell" size={16}/></button><div className="avatar">AM</div></div>
+        </header>
+        {children}
+      </div>
+    </div>
+  );
+}
