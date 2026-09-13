@@ -147,7 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="top-actions">
-            {IS_SAMPLE_DATA ? (
+            {IS_SAMPLE_DATA && !current?.live ? (
               <span className="sample-pill" title="This workspace is showing sample data">
                 <span>Sample data</span>
               </span>

@@ -7,8 +7,14 @@ import { StatusBadge } from '@/components/ui/badge';
 import { DataTable, EntityCell } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LEAD_STATUS_DISPLAY, initials } from '@/lib/status';
-import type { LeadStatus } from '@/domain/types';
-import type { DemoLead } from '@/lib/demo-data';
+import {
+  LEAD_SOURCE_LABEL,
+  formatAbsoluteTime,
+  formatRelativeTime,
+  leadDisplayName,
+  leadSecondaryLine,
+} from '@/lib/leads';
+import type { Lead, LeadStatus } from '@/domain/types';
 
 const COLUMNS = [
   { key: 'lead', header: 'Lead' },
@@ -31,11 +37,19 @@ const FILTERS: readonly (LeadStatus | 'ALL')[] = [
 /**
  * Lead list with search and status filtering.
  *
- * Filtering runs over the rows this component is given. Phase 3 swaps the
- * `leads` prop for a workspace-scoped query (and moves filtering server-side
- * once lists outgrow a single page) without changing the presentation.
+ * Filtering runs over the rows this component is given. Once lists outgrow a
+ * single API page, the same controls can drive server-side query parameters
+ * without changing the presentation.
  */
-export function LeadsTable({ leads, totalCount }: { leads: readonly DemoLead[]; totalCount: number }) {
+export function LeadsTable({
+  leads,
+  subtitle,
+  onAddLead,
+}: {
+  leads: readonly Lead[];
+  subtitle: string;
+  onAddLead: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<LeadStatus | 'ALL'>('ALL');
 
@@ -44,10 +58,9 @@ export function LeadsTable({ leads, totalCount }: { leads: readonly DemoLead[]; 
     return leads.filter((lead) => {
       if (status !== 'ALL' && lead.status !== status) return false;
       if (!needle) return true;
+      const haystack = [lead.name, lead.company, lead.email].filter(Boolean).join(' ').toLowerCase();
       return (
-        lead.name.toLowerCase().includes(needle) ||
-        lead.company.toLowerCase().includes(needle) ||
-        lead.email.toLowerCase().includes(needle) ||
+        haystack.includes(needle) ||
         lead.phone.replace(/\s/g, '').includes(needle.replace(/\s/g, ''))
       );
     });
@@ -59,7 +72,7 @@ export function LeadsTable({ leads, totalCount }: { leads: readonly DemoLead[]; 
     <div className="card">
       <CardHeader
         title="All leads"
-        subtitle={`${totalCount.toLocaleString()} leads in this workspace`}
+        subtitle={subtitle}
         action={
           <div className="toolbar">
             <label className="search-field">
@@ -89,7 +102,19 @@ export function LeadsTable({ leads, totalCount }: { leads: readonly DemoLead[]; 
         }
       />
 
-      {visible.length === 0 ? (
+      {leads.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No leads yet"
+          description="Add your first lead to start calling, or import a list once file upload is available."
+          actions={
+            <button type="button" className="primary-button" onClick={onAddLead}>
+              <Icon name="plus" size={15} />
+              Add lead
+            </button>
+          }
+        />
+      ) : visible.length === 0 ? (
         <EmptyState
           icon="search"
           title="No leads match your filters"
@@ -113,23 +138,29 @@ export function LeadsTable({ leads, totalCount }: { leads: readonly DemoLead[]; 
             {visible.map((lead) => (
               <tr key={lead.id}>
                 <td>
-                  <EntityCell initials={initials(lead.name)} name={lead.name} meta={lead.company} />
+                  <EntityCell
+                    initials={initials(leadDisplayName(lead))}
+                    name={leadDisplayName(lead)}
+                    meta={leadSecondaryLine(lead)}
+                  />
                 </td>
                 <td className="muted numeric">{lead.phone}</td>
                 <td>
-                  <span className="badge gray">{lead.source}</span>
+                  <span className="badge gray">{LEAD_SOURCE_LABEL[lead.source]}</span>
                 </td>
                 <td>
                   <StatusBadge status={LEAD_STATUS_DISPLAY[lead.status]} />
                 </td>
-                <td className="muted">{lead.updatedLabel}</td>
+                <td className="muted" title={formatAbsoluteTime(lead.updatedAt)}>
+                  {formatRelativeTime(lead.updatedAt)}
+                </td>
               </tr>
             ))}
           </DataTable>
           <div className="table-foot">
             <span>
-              Showing {visible.length} of {isFiltered ? leads.length : totalCount.toLocaleString()}
-              {isFiltered ? ' matching leads' : ' leads'}
+              Showing {visible.length} of {leads.length}
+              {isFiltered ? ' matching leads' : leads.length === 1 ? ' lead' : ' leads'}
             </span>
           </div>
         </>

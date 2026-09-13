@@ -11,8 +11,12 @@ import type { IconName } from '@/components/icons';
  * these as real workspace data.
  *
  * Phase 3 (Supabase) replaces every import of this module with a real,
- * workspace-scoped query. When that lands, DELETE THIS FILE — a passing
- * type-check afterwards proves no view still depends on sample data.
+ * workspace-scoped query. The Leads page has already moved: it reads from
+ * `/api/leads` via `src/lib/leads.ts`. `DEMO_LEADS` below is still used by the
+ * dashboard's "Recent leads" card and is NOT what /leads renders.
+ *
+ * When the last view is migrated, DELETE THIS FILE — a passing type-check
+ * afterwards proves no view still depends on sample data.
  *
  * The shapes below intentionally mirror `src/domain/types.ts` so swapping in
  * real rows is a change of source, not a rewrite of the views.
@@ -107,8 +111,6 @@ export const DEMO_LEADS: readonly DemoLead[] = [
     updatedLabel: '1 hr ago',
   },
 ] as const;
-
-export const TOTAL_LEADS = 1284;
 
 /* -------------------------------------------------------------------------- */
 /* Agents                                                                     */

@@ -22,8 +22,9 @@ export async function login(formData: FormData) {
 
   if (error) redirect('/login?error=invalid_credentials')
 
-  const next = typeof formData.get('next') === 'string' ? formData.get('next') : '/'
-  const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/'
+  const nextValue = formData.get('next')
+  const next = typeof nextValue === 'string' ? nextValue : '/'
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'
   redirect(safeNext)
 }
 
@@ -36,8 +37,10 @@ export async function signup(formData: FormData) {
   if (!parsed.success) redirect('/login?error=invalid_signup')
 
   const supabase = await createClient()
-  const fullName = typeof formData.get('fullName') === 'string' ? formData.get('fullName') : ''
-  const workspaceName = typeof formData.get('workspaceName') === 'string' ? formData.get('workspaceName') : ''
+  const fullNameValue = formData.get('fullName')
+  const workspaceNameValue = formData.get('workspaceName')
+  const fullName = typeof fullNameValue === 'string' ? fullNameValue : ''
+  const workspaceName = typeof workspaceNameValue === 'string' ? workspaceNameValue : ''
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,

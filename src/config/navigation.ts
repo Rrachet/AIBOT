@@ -13,11 +13,17 @@ export interface NavItem {
   icon: IconName;
   /** Short description used by the mobile drawer and the 404 page. */
   description: string;
+  /**
+   * True once this area reads real workspace data instead of sample records.
+   * The topbar's "Sample data" pill is hidden on these routes. Flip the flag
+   * as each area is connected to its API.
+   */
+  live?: boolean;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Overview', href: '/', icon: 'grid', description: 'Workspace summary and next steps' },
-  { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call' },
+  { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call', live: true },
   { label: 'AI Agents', href: '/agents', icon: 'bot', description: 'Voice agents that represent you' },
   { label: 'Campaigns', href: '/campaigns', icon: 'megaphone', description: 'Outbound calling runs' },
   { label: 'Calls', href: '/calls', icon: 'phone', description: 'Call history and outcomes' },
