@@ -19,6 +19,73 @@ Future lead sources (Meta Lead Ads, website forms, CRMs) will enter the same nor
 - No fake successful calls or messages when an external provider is unavailable.
 - V1 exposes only the functionality needed for manual lead operations.
 
+## Authentication
+
+AIBOT uses Supabase Auth through `@supabase/ssr`. The session lives in cookies
+and is refreshed by `src/proxy.ts`; no token is ever written to `localStorage`.
+
+Two ways in, both landing on the same Supabase user:
+
+- **Email and password** — signup, sign-in and email confirmation.
+- **Continue with Google** — OAuth via Supabase, using the PKCE flow.
+
+### Google sign-in: what to configure
+
+Nothing about Google goes in this repository. The client ID and secret belong
+in the Supabase Dashboard, which is why `.env.example` gains no new variable —
+the browser derives its redirect from `window.location.origin`.
+
+**1. Google Cloud Console** — APIs & Services → Credentials → *OAuth client ID*
+(Web application):
+
+| Field | Value |
+| --- | --- |
+| Authorised JavaScript origins | `http://localhost:3000`, plus your production origin |
+| Authorised redirect URI | `https://<project-ref>.supabase.co/auth/v1/callback` |
+
+The redirect URI points at **Supabase**, not at AIBOT. Supabase completes the
+exchange with Google and then redirects to AIBOT. Copy the generated client ID
+and client secret.
+
+**2. Supabase Dashboard → Authentication → Providers → Google**
+
+- Enable the provider.
+- Paste the client ID and client secret from step 1.
+- Leave *Skip nonce check* off.
+
+**3. Supabase Dashboard → Authentication → URL Configuration**
+
+| Field | Value |
+| --- | --- |
+| Site URL | your production origin, e.g. `https://aibot.example.com` |
+| Redirect URLs | `http://localhost:3000/auth/callback`, `https://<your-domain>/auth/callback`, and for Vercel previews `https://*-<your-team>.vercel.app/auth/callback` |
+
+A redirect URL that is not listed here fails the exchange and the user is
+returned to `/login` with an error. Add every origin the app is served from.
+
+### One account per email
+
+Supabase links a Google sign-in to an existing user when the email matches and
+is confirmed (Dashboard → Authentication → Providers → *Allow manual linking* /
+automatic linking behaviour). AIBOT does not merge accounts itself: there is no
+code that looks a user up by email and joins records, because doing so on an
+unverified email is how account-takeover bugs happen.
+
+### First Google sign-in
+
+A Google account arrives with no password, so `/auth/set-password` offers to
+create one — the account then works with either method. An account that already
+has a password never sees that page. The password is passed straight to
+`supabase.auth.updateUser()` and is never stored or logged by AIBOT.
+
+### Workspaces
+
+Workspace creation belongs to the `on_auth_user_created_workspace` trigger,
+which fires for every new `auth.users` row regardless of how the user signed
+up. Application code never creates a workspace, so a Google signup gets exactly
+one and a returning Google user gets none.
+
+
 ## UI layer (Phase 1)
 
 The interface is built and reviewable before any backend exists. No page calls a

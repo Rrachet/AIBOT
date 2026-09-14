@@ -9,6 +9,7 @@ import type { Lead } from '@/domain/types';
 import { LEADS_PAGE_SIZE, LeadApiError, fetchLeads } from '@/lib/leads';
 import { LeadsTable } from './leads-table';
 import { AddLeadDialog } from './add-lead-dialog';
+import { ImportLeadsDialog } from './import-dialog';
 import { LeadsTableSkeleton } from './leads-table-skeleton';
 
 type LoadState =
@@ -19,6 +20,7 @@ type LoadState =
 export function LeadsView() {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   // Lets an in-flight reload be discarded if another starts or we unmount.
   const requestRef = useRef(0);
 
@@ -87,6 +89,14 @@ export function LeadsView() {
 
   const openDialog = useCallback(() => setDialogOpen(true), []);
   const closeDialog = useCallback(() => setDialogOpen(false), []);
+  const openImport = useCallback(() => setImportOpen(true), []);
+  const closeImport = useCallback(() => setImportOpen(false), []);
+
+  // An import can add many rows at once, so the list is reloaded from the
+  // server rather than patched in place.
+  const handleImported = useCallback(() => {
+    void load();
+  }, [load]);
 
   let subtitle = 'Loading leads…';
   if (state.phase === 'ready') {
@@ -104,12 +114,7 @@ export function LeadsView() {
       subtitle="Manage the people AIBOT should call."
       actions={
         <>
-          {/* CSV import has no backend yet, so this control is left as-is. */}
-          <button
-            type="button"
-            className="secondary-button"
-            title="CSV import is not available yet"
-          >
+          <button type="button" className="secondary-button" onClick={openImport}>
             <Icon name="upload" size={15} /> Import CSV or Excel
           </button>
           <button type="button" className="primary-button" onClick={openDialog}>
@@ -146,6 +151,7 @@ export function LeadsView() {
       ) : null}
 
       <AddLeadDialog open={dialogOpen} onClose={closeDialog} onCreated={handleCreated} />
+      <ImportLeadsDialog open={importOpen} onClose={closeImport} onImported={handleImported} />
     </SectionPage>
   );
 }

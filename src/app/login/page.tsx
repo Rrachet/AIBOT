@@ -1,4 +1,6 @@
 import { login, signup } from './actions'
+import { GoogleSignInButton } from './google-button'
+import { safeNextPath } from '@/lib/auth/redirect'
 
 const messages: Record<string, string> = {
   invalid_credentials: 'The email or password is incorrect.',
@@ -6,6 +8,10 @@ const messages: Record<string, string> = {
   signup_failed: 'We could not create your account. The email may already be registered.',
   check_email: 'Account created. Check your email to confirm your account before signing in.',
   confirmation_failed: 'That confirmation link is invalid or has expired. Request a new signup email.',
+  oauth_failed: 'Google sign-in did not complete. Try again, or sign in with your email and password.',
+  oauth_exchange_failed:
+    'That Google sign-in link has expired or was already used. Start the sign-in again.',
+  oauth_unavailable: 'Google sign-in is unavailable right now. Sign in with your email and password.',
   configuration_error:
     'This AIBOT server is not configured to sign you in yet. Set the Supabase environment variables and restart it.',
   session_not_established:
@@ -16,7 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const params = await searchParams
   const error = typeof params.error === 'string' ? messages[params.error] : undefined
   const message = typeof params.message === 'string' ? messages[params.message] : undefined
-  const next = typeof params.next === 'string' ? params.next : '/'
+  const next = safeNextPath(params.next)
 
   return (
     <main className="auth-page">
@@ -29,6 +35,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
         {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
         {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
+
+        <GoogleSignInButton next={next} />
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
 
         <form className="auth-form" action={login}>
           <input type="hidden" name="next" value={next} />

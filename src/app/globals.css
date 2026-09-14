@@ -1619,6 +1619,162 @@ a.quick-card:hover {
   }
 }
 
+/* Lead import. Reuses the Add lead dialog shell; only the step content is new. */
+.import-dialog {
+  width: min(680px, calc(100vw - 32px));
+}
+
+.import-drop {
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 30px 20px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.import-drop.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.import-drop strong {
+  font-size: 13.5px;
+}
+
+.import-drop > span:not(.empty-icon) {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.import-drop .secondary-button {
+  margin-top: 10px;
+}
+
+.import-steps {
+  margin-top: 18px;
+}
+
+.import-busy {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 34px 20px;
+}
+
+.import-busy p {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+}
+
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  margin-bottom: 16px;
+}
+
+.import-file-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.import-file-copy strong {
+  display: block;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-file-copy > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.import-note {
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid #f3e2bf;
+  margin-bottom: 16px;
+}
+
+.import-sample {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.import-sample .card-subtitle {
+  padding: 10px 14px;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.import-sample .table {
+  min-width: 480px;
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.import-tile {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  background: var(--surface-soft);
+}
+
+.import-tile > span:last-child {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.import-summary-line {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+}
+
+.import-issues {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.import-issue-group .notes {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .import-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* 8b. Authentication (login screens) ------------------------------------- */
 
 /* Authentication */
@@ -1631,6 +1787,11 @@ a.quick-card:hover {
 .auth-alert { border-radius:10px; padding:11px 12px; font-size:12px; margin-bottom:16px; line-height:1.45; }
 .auth-alert-error { color:var(--red); background:var(--red-soft); border:1px solid #ffdada; }
 .auth-alert-success { color:var(--green); background:var(--green-soft); border:1px solid #ccefe0; }
+.auth-google { width:100%; height:42px; border:1px solid #dfe2e8; border-radius:9px; background:#fff; color:var(--text); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:9px; transition:background .15s ease, border-color .15s ease; }
+.auth-google:hover:not(:disabled) { background:var(--surface-soft); border-color:#c6cad3; }
+.auth-google:disabled { color:var(--muted); cursor:not-allowed; }
+.auth-divider { display:flex; align-items:center; gap:12px; margin:18px 0; color:var(--muted-2); font-size:11px; font-weight:600; }
+.auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 .auth-form { display:grid; gap:14px; }
 .auth-form label { display:grid; gap:7px; color:#41464f; font-size:12px; font-weight:600; }
 .auth-form input { width:100%; height:42px; border:1px solid #dfe2e8; border-radius:9px; padding:0 12px; outline:none; background:#fff; color:var(--text); font-size:13px; }
