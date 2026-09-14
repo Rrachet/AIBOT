@@ -1,48 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { safeNextPath } from '@/lib/auth/redirect'
+import { useFormStatus } from 'react-dom'
+import { signInWithGoogle } from './google-action'
 
-/**
- * Starts the Google OAuth flow.
- *
- * `signInWithOAuth` on the browser client uses PKCE: it stores a verifier in a
- * cookie and sends the browser to Google. Google returns to /auth/callback,
- * which exchanges the code for a session server-side. No token is handled here
- * and nothing is written to localStorage.
- */
 export function GoogleSignInButton({ next }: { next: string }) {
-  const [busy, setBusy] = useState(false)
+  return (
+    <form action={signInWithGoogle}>
+      <input type="hidden" name="next" value={next} />
+      <GoogleSubmitButton />
+    </form>
+  )
+}
 
-  async function start() {
-    if (busy) return
-    setBusy(true)
-
-    try {
-      const supabase = createClient()
-      const destination = safeNextPath(next)
-      const callback = new URL('/auth/callback', window.location.origin)
-      if (destination !== '/') callback.searchParams.set('next', destination)
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: callback.toString() },
-      })
-
-      // On success the browser is already navigating to Google.
-      if (error) {
-        window.location.assign('/login?error=oauth_failed')
-      }
-    } catch {
-      window.location.assign('/login?error=oauth_unavailable')
-    }
-  }
+function GoogleSubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <button type="button" className="auth-google" onClick={start} disabled={busy}>
+    <button type="submit" className="auth-google" disabled={pending}>
       <GoogleMark />
-      {busy ? 'Redirecting to Google…' : 'Continue with Google'}
+      {pending ? 'Redirecting to Google…' : 'Continue with Google'}
     </button>
   )
 }
