@@ -4,18 +4,12 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { SupabaseConfigError } from '@/lib/supabase/env'
+import { safeNextPath } from '@/lib/auth/redirect'
 
 const credentialsSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(8).max(128),
 })
-
-/** Only same-origin absolute paths are accepted, so `next` cannot redirect off-site. */
-function safeNext(value: FormDataEntryValue | null): string {
-  if (typeof value !== 'string') return '/'
-  if (!value.startsWith('/') || value.startsWith('//')) return '/'
-  return value
-}
 
 function text(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -29,7 +23,7 @@ export async function login(formData: FormData) {
 
   if (!parsed.success) redirect('/login?error=invalid_credentials')
 
-  const destination = safeNext(formData.get('next'))
+  const destination = safeNextPath(formData.get('next'))
 
   let supabase
   try {
