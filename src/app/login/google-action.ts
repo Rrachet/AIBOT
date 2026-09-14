@@ -19,8 +19,8 @@ function getOrigin(headerStore: Headers) {
   return 'http://localhost:3000'
 }
 
-export async function signInWithGoogle(next: string) {
-  const destination = safeNextPath(next)
+export async function signInWithGoogle(formData: FormData) {
+  const destination = safeNextPath(formData.get('next'))
   const headerStore = await headers()
   const origin = getOrigin(headerStore)
   const callback = new URL('/auth/callback', origin)
