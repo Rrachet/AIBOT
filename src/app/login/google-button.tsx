@@ -1,24 +1,58 @@
 'use client'
 
-import { useFormStatus } from 'react-dom'
-import { signInWithGoogle } from './google-action'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { safeNextPath } from '@/lib/auth/redirect'
 
+/**
+ * Starts the Google OAuth flow from the browser.
+ *
+ * This must run in the browser, not in a server action. `signInWithOAuth`
+ * generates the PKCE verifier and hands it to the client's storage before
+ * navigating to the provider; the callback later needs that same verifier to
+ * exchange the code. Started from the server, the verifier is written in a
+ * different cookie-writing context from the navigation that follows, so the
+ * exchange has nothing to verify against and the sign-in fails.
+ *
+ * The browser client redirects to the provider itself once the verifier is
+ * stored, so there is nothing to await after a successful call.
+ */
 export function GoogleSignInButton({ next }: { next: string }) {
-  return (
-    <form action={signInWithGoogle}>
-      <input type="hidden" name="next" value={next} />
-      <GoogleSubmitButton />
-    </form>
-  )
-}
+  const [busy, setBusy] = useState(false)
 
-function GoogleSubmitButton() {
-  const { pending } = useFormStatus()
+  async function start() {
+    if (busy) return
+    setBusy(true)
+
+    try {
+      const supabase = createClient()
+      const destination = safeNextPath(next)
+
+      // Built from the live origin so the same code works on localhost, on a
+      // preview deployment and in production without configuration.
+      const callback = new URL('/auth/callback', window.location.origin)
+      if (destination !== '/') callback.searchParams.set('next', destination)
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callback.toString() },
+      })
+
+      if (error) {
+        setBusy(false)
+        window.location.assign('/login?error=oauth_failed')
+      }
+      // On success the browser is already navigating to Google.
+    } catch {
+      setBusy(false)
+      window.location.assign('/login?error=oauth_unavailable')
+    }
+  }
 
   return (
-    <button type="submit" className="auth-google" disabled={pending}>
+    <button type="button" className="auth-google" onClick={start} disabled={busy}>
       <GoogleMark />
-      {pending ? 'Redirecting to Google…' : 'Continue with Google'}
+      {busy ? 'Redirecting to Google…' : 'Continue with Google'}
     </button>
   )
 }
