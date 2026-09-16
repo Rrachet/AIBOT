@@ -1,6 +1,6 @@
 /**
  * Redirect-target validation, shared by every place that accepts a `next`
- * parameter (login, signup, email confirmation and the OTP verification page).
+ * parameter (login, email confirmation and the signup confirmation callback).
  *
  * Only same-origin absolute paths are allowed. Anything else — a protocol,
  * a protocol-relative `//host`, a backslash variant some browsers normalise

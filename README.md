@@ -27,30 +27,38 @@ and is refreshed by `src/proxy.ts`; no token is ever written to `localStorage`.
 One way in, one kind of account:
 
 - **Sign up** — name, workspace name, email, password, confirm password, then a
-  6-digit code emailed to that address.
-- **Sign in** — email and password only. A confirmed account never sees a code
-  again.
+  confirmation link emailed to that address.
+- **Sign in** — email and password only. A confirmed account never sees the
+  confirmation step again.
 
-There is no social sign-in. Supabase owns the codes end to end: AIBOT never
-generates, stores, hashes or compares one.
+There is no social sign-in and no code to type. Supabase owns confirmation end
+to end: AIBOT never generates, stores or compares a token.
 
 ### Registration flow
 
-1. `/login` posts the signup form to `signUpWithPassword` in
-   `src/app/login/actions.ts`, which calls `supabase.auth.signUp()` with
-   `full_name` and `workspace_name` in `options.data`.
+1. `/login` posts the signup form to `signup` in `src/app/login/actions.ts`,
+   which calls `supabase.auth.signUp()` with `full_name` and `workspace_name`
+   in `options.data`, and `options.emailRedirectTo` pointing at
+   `/auth/callback`.
 2. With email confirmation on, `signUp()` returns **no session**. The action
-   redirects to `/auth/verify?email=...&sent=1`.
-3. `/auth/verify` collects the code and calls
-   `supabase.auth.verifyOtp({ email, token, type: 'signup' })`. That call is what
-   establishes the session, so an unverified address can never reach the app.
-4. On success the user lands on `/` (or a validated `next` path — see
-   `safeNextPath` in `src/lib/auth/redirect.ts`).
+   redirects to `/login?message=check_email`.
+3. The emailed link goes to Supabase, which verifies the address and then sends
+   the browser to `/auth/callback?code=...`.
+4. `src/app/auth/callback/route.ts` calls
+   `supabase.auth.exchangeCodeForSession(code)`. That exchange is what
+   establishes the session, so an unconfirmed address can never reach the app.
+5. The user lands on `/` (or a validated `next` path — see `safeNextPath` in
+   `src/lib/auth/redirect.ts`).
 
-Resending is `supabase.auth.resend({ type: 'signup', email })`, behind a 60
-second countdown in the UI. Supabase rate-limits it server-side as well, and a
-429 is reported as "Please wait a moment before requesting another code" rather
-than swallowed.
+Without `emailRedirectTo` the link would land on the dashboard with an
+unexchanged code in the URL and bounce straight back to `/login`. The origin
+comes from `NEXT_PUBLIC_SITE_URL` when set, and otherwise from the request, so
+localhost and preview deployments work with no configuration.
+
+**The link must be opened in the browser that started the signup.** The
+exchange uses the PKCE verifier stored as a cookie by `signUp()`; a link opened
+on another device fails at the exchange rather than signing anyone in, and the
+message on `/login` says so.
 
 Two edges worth knowing, because both are silent in the raw API:
 
@@ -58,39 +66,40 @@ Two edges worth knowing, because both are silent in the raw API:
   address exists — it returns a user with an empty `identities` array instead of
   an error. The signup action treats that shape as "email already registered".
 - **Unconfirmed sign-in.** A password sign-in for an unconfirmed account fails
-  with an "Email not confirmed" error, so the login action routes it back to
-  `/auth/verify` instead of claiming the credentials are wrong.
+  with an "Email not confirmed" error, so the login action says exactly that
+  instead of claiming the credentials are wrong.
+
+`src/app/auth/confirm/route.ts` is the other shape of email link: a
+`token_hash` that it verifies directly. It predates this flow and stays for
+email templates built that way, and for any future recovery or email-change
+link. The signup path does not use it.
 
 ### What to configure in Supabase
 
 Nothing about email delivery belongs in this repository. No SMTP credential and
-no provider name is read by application code, and `.env.example` gains no
-variable for it.
+no provider name is read by application code.
 
 **1. Authentication → Providers → Email**
 
 - Enable *Email*.
 - Enable *Confirm email*. With it off, `signUp()` returns a session immediately
-  and the verification step is skipped entirely.
+  and the user goes straight to the dashboard with no link to click.
 
 **2. Authentication → Email Templates → Confirm signup**
 
-The default template sends a link, not a code. Make sure the body contains the
-token variable:
-
-```text
-Your AIBOT verification code is {{ .Token }}
-```
-
-Keeping `{{ .ConfirmationURL }}` alongside it is fine — `src/app/auth/confirm/route.ts`
-still handles the link form — but the code is what `/auth/verify` expects.
+The default template — `{{ .ConfirmationURL }}` — is what this flow expects. It
+sends the user to Supabase, which verifies the address and then redirects to the
+`emailRedirectTo` above with a one-time code.
 
 **3. Authentication → URL Configuration**
 
 | Field | Value |
 | --- | --- |
 | Site URL | your production origin, e.g. `https://aibot.example.com` |
-| Redirect URLs | `http://localhost:3000/**`, `https://<your-domain>/**` |
+| Redirect URLs | `http://localhost:3000/auth/callback`, `https://<your-domain>/auth/callback`, and for Vercel previews `https://*-<your-team>.vercel.app/auth/callback` |
+
+A redirect target that is not listed here is refused by Supabase and the user
+comes back to `/login` with an error. Add every origin the app is served from.
 
 **4. Project Settings → Authentication → SMTP**
 
@@ -102,7 +111,7 @@ a real SMTP provider before anyone outside the team signs up.
 Workspace creation belongs to the `on_auth_user_created_workspace` trigger,
 which fires once per new `auth.users` row and reads `workspace_name` from the
 signup metadata. Application code never creates a workspace, so a signup gets
-exactly one however many times the code is resent or retyped.
+exactly one however many times the link is opened.
 
 ## UI layer (Phase 1)
 

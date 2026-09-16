@@ -1,5 +1,6 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
@@ -27,6 +28,25 @@ function text(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+/**
+ * Absolute origin used to build the confirmation link Supabase emails.
+ *
+ * `NEXT_PUBLIC_SITE_URL` pins it in production; otherwise it is derived from
+ * the request so preview deployments and localhost work without configuration.
+ * A forged Host header cannot redirect anyone anywhere, because Supabase only
+ * honours redirect targets on its own allow-list.
+ */
+async function siteOrigin(): Promise<string> {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (configured) return configured.replace(/\/+$/, '')
+
+  const headerList = await headers()
+  const host = headerList.get('x-forwarded-host') ?? headerList.get('host') ?? 'localhost:3000'
+  const protocol = headerList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
+
+  return `${protocol}://${host}`
+}
+
 export async function login(formData: FormData) {
   const parsed = credentialsSchema.safeParse({
     email: formData.get('email'),
@@ -48,12 +68,10 @@ export async function login(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data)
 
   // An account that exists but has never confirmed its email cannot sign in.
-  // Send it back to the code it was already issued rather than telling the
-  // user their correct password is wrong.
+  // Point the user at the link they were already sent rather than telling them
+  // their correct password is wrong.
   if (error) {
-    if (/confirm/i.test(error.message)) {
-      redirect(`/auth/verify?email=${encodeURIComponent(parsed.data.email)}&error=email_not_confirmed`)
-    }
+    if (/confirm/i.test(error.message)) redirect('/login?error=email_not_confirmed')
     redirect('/login?error=invalid_credentials')
   }
 
@@ -102,6 +120,10 @@ export async function signup(formData: FormData) {
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
+      // Where Supabase sends the browser once it has verified the address.
+      // Without it the link lands on the dashboard with an unexchanged code in
+      // the URL and the user is bounced straight back to /login.
+      emailRedirectTo: `${await siteOrigin()}/auth/callback`,
       data: {
         full_name: parsed.data.fullName,
         workspace_name: parsed.data.workspaceName,
@@ -111,17 +133,19 @@ export async function signup(formData: FormData) {
 
   if (error) redirect('/login?error=signup_failed')
 
+  // A session here means the project has email confirmation switched off, so
+  // the account is already usable and there is no link to click. This is
+  // checked first: a session proves the signup succeeded, whatever else the
+  // response contains.
+  if (data.session) redirect('/')
+
   // With confirmations on, Supabase does not reveal that an address is already
-  // registered: it returns a user with no identities instead of an error. Say
-  // so plainly rather than sending the user to wait for a code that will not
-  // arrive.
+  // registered: it returns a user with no identities and no session instead of
+  // an error. Say so plainly rather than sending the user to wait for an email
+  // that will not arrive.
   if (data.user && (data.user.identities?.length ?? 0) === 0) {
     redirect('/login?error=email_taken')
   }
 
-  // A session here means the project has email confirmation switched off, so
-  // the account is already usable and there is no code to enter.
-  if (data.session) redirect('/')
-
-  redirect(`/auth/verify?email=${encodeURIComponent(parsed.data.email)}&sent=1`)
+  redirect('/login?message=check_email')
 }

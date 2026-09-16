@@ -9,7 +9,13 @@ const messages: Record<string, string> = {
   password_mismatch: 'Those passwords do not match.',
   email_taken: 'That email is already registered. Sign in instead, or use another address.',
   signup_failed: 'We could not create your account. Try again in a moment.',
-  confirmation_failed: 'That confirmation link is invalid or has expired. Request a new code.',
+  email_not_confirmed:
+    'Confirm your email first. Click the link in the message we sent you, then sign in.',
+  check_email:
+    'Account created. Check your email and click the confirmation link to activate your account.',
+  confirmation_failed: 'That confirmation link is invalid or has expired. Sign up again to get a new one.',
+  confirmation_exchange_failed:
+    'That confirmation link could not be completed. Open it in the browser you signed up in, or sign up again to get a new link.',
   configuration_error:
     'This AIBOT server is not configured to sign you in yet. Set the Supabase environment variables and restart it.',
   session_not_established:
@@ -51,7 +57,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <label>Confirm password<input name="confirm" type="password" placeholder="Repeat your password" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
             <button type="submit" className="auth-secondary">Create account</button>
           </form>
-          <p className="auth-footnote">We email a 6-digit code to confirm your address before your account is active.</p>
+          <p className="auth-footnote">We email a confirmation link. Click it to activate your account.</p>
         </details>
 
         <p className="auth-footnote">By continuing, you agree to use AIBOT responsibly and keep your workspace credentials secure.</p>
