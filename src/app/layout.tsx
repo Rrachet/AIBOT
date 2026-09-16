@@ -22,10 +22,11 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: 'AIBOT — AI lead engagement',
+    default: 'AIBOT — AI lead conversion engine',
     template: '%s · AIBOT',
   },
-  description: 'Turn leads into conversations with AI calling and WhatsApp follow-up.',
+  description:
+    'AIBOT calls every inbound lead, asks your qualification questions, records the outcome and queues the follow-up.',
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#ffffff',
+  themeColor: '#151515',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
