@@ -1,5 +1,9 @@
 import type { Lead, LeadSource, LeadStatus } from '@/domain/types'
 import { LEAD_STATUS_DISPLAY } from '@/lib/status'
+import { ApiError, asString, isRecord, readBody, toApiError } from '@/lib/api/client'
+
+/** Kept as the name the leads UI already imports. */
+export { ApiError as LeadApiError }
 
 /**
  * Client-side boundary for `/api/leads`.
@@ -35,14 +39,6 @@ export const LEADS_PAGE_SIZE = 100
 /* Response parsing                                                           */
 /* -------------------------------------------------------------------------- */
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null
-}
-
 /**
  * Map one database row onto the domain type. Returns null for a row that is
  * unusable (no id or phone) so a single malformed record cannot break the list.
@@ -70,84 +66,6 @@ function toLead(value: unknown): Lead | null {
     createdAt: asString(value.created_at) ?? '',
     updatedAt: asString(value.updated_at) ?? asString(value.created_at) ?? '',
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Errors                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export class LeadApiError extends Error {
-  readonly status: number
-  readonly code: string | null
-  /** Field-level messages from the API's Zod validation, keyed by field name. */
-  readonly fieldErrors: Record<string, string>
-
-  constructor(
-    message: string,
-    options: { status: number; code?: string | null; fieldErrors?: Record<string, string> }
-  ) {
-    super(message)
-    this.name = 'LeadApiError'
-    this.status = options.status
-    this.code = options.code ?? null
-    this.fieldErrors = options.fieldErrors ?? {}
-  }
-
-  /** A missing or expired session; the caller should send the user to sign in. */
-  get isAuthError(): boolean {
-    return this.status === 401
-  }
-
-  /**
-   * Signed in, but the account cannot use this workspace. Signing in again
-   * will not help, so the UI must not offer that as the fix.
-   */
-  get isWorkspaceError(): boolean {
-    return this.status === 403
-  }
-
-  /** The server is missing its Supabase configuration. */
-  get isConfigError(): boolean {
-    return this.code === 'SUPABASE_NOT_CONFIGURED'
-  }
-}
-
-function readFieldErrors(details: unknown): Record<string, string> {
-  if (!isRecord(details) || !isRecord(details.fieldErrors)) return {}
-
-  const result: Record<string, string> = {}
-  for (const [field, messages] of Object.entries(details.fieldErrors)) {
-    const first = Array.isArray(messages) ? asString(messages[0]) : null
-    if (first) result[field] = first
-  }
-  return result
-}
-
-/**
- * `error` arrives in more than one shape: the proxy returns
- * `{ error: { code, message } }`, `requireAuth` returns `{ error: 'string' }`,
- * and validation failures return `{ error: { code, details } }`.
- */
-function toApiError(status: number, body: unknown, fallback: string): LeadApiError {
-  const error = isRecord(body) ? body.error : undefined
-
-  if (typeof error === 'string') {
-    return new LeadApiError(error, { status })
-  }
-
-  if (isRecord(error)) {
-    const fieldErrors = readFieldErrors(error.details)
-    const message =
-      asString(error.message) ??
-      (Object.keys(fieldErrors).length > 0 ? 'Please correct the highlighted fields.' : fallback)
-    return new LeadApiError(message, { status, code: asString(error.code), fieldErrors })
-  }
-
-  return new LeadApiError(fallback, { status })
-}
-
-async function readBody(response: Response): Promise<unknown> {
-  return response.json().catch(() => null)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -207,7 +125,7 @@ export async function createLead(input: CreateLeadInput): Promise<Lead> {
 
   const lead = toLead(isRecord(body) ? body.data : null)
   if (!lead) {
-    throw new LeadApiError('The lead was saved but could not be read back.', { status: response.status })
+    throw new ApiError('The lead was saved but could not be read back.', { status: response.status })
   }
 
   return lead
