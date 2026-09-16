@@ -177,6 +177,46 @@ There is no ESLint setup. `next lint` was removed in Next.js 16, so the old
 `lint` script was deleted rather than left failing. Adding ESLint's flat config
 (`eslint` + `eslint-config-next`) is a reasonable Phase 2 task.
 
+## Deployment
+
+The app is a stock Next.js project: Vercel needs no `vercel.json` and no build
+overrides. What it does need is configuration, in this order.
+
+**1. Apply the database schema.** Nothing works before this — the workspace
+bootstrap trigger and every RLS policy live here. Run the files in
+`supabase/migrations/` in filename order, either with `supabase db push` or by
+pasting each one into the Supabase SQL editor.
+
+**2. Set the environment variables** in Vercel (Project → Settings →
+Environment Variables), for Production, Preview and Development:
+
+| Variable | Where it comes from |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable (anon) key from the same page |
+| `NEXT_PUBLIC_SITE_URL` | optional; your production origin |
+
+Those two required values are the only configuration the app reads. The secret
+key is deliberately not one of them: no server route uses it, because every
+query runs as the signed-in user so RLS applies.
+
+`NEXT_PUBLIC_*` values are inlined into the bundle **at build time**, so set
+them before the first deploy and redeploy after changing one — editing the
+variable alone does not change a build that already shipped.
+
+**3. Import the repository** at vercel.com/new. Framework and build command are
+detected; leave them alone.
+
+**4. Point Supabase at the deployed origin** — Authentication → URL
+Configuration — as described under **What to configure in Supabase** above. The
+callback URL must be on the Redirect URLs allow-list or Supabase silently
+redirects confirmation links to the Site URL instead, and signup appears to
+hang with no error.
+
+A deployment that is missing step 2 does not crash: `/login` explains that the
+server is not configured, and every protected route and API route refuses
+rather than rendering signed-in chrome to an anonymous visitor.
+
 ## Planned stack
 
 - Next.js + TypeScript
