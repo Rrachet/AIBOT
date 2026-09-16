@@ -831,6 +831,9 @@ button:disabled {
 
 .table .numeric {
   font-variant-numeric: tabular-nums;
+  /* Phone numbers, counts and durations read as one token; the table scrolls
+     sideways rather than breaking them across lines. */
+  white-space: nowrap;
 }
 
 .lead-name {
@@ -871,6 +874,9 @@ button:disabled {
   font-size: 11.5px;
   margin-top: 2px;
   font-weight: 400;
+  /* A phone number broken across four lines is unreadable, and the table it
+     sits in scrolls sideways rather than squeezing its columns. */
+  white-space: nowrap;
 }
 
 .muted {
@@ -1712,6 +1718,17 @@ a.quick-card:hover {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 4px;
+}
+
+/* Confirmation beside a save button. Green and quiet: the change is already
+   on screen, so this only has to say it reached the server. */
+.form-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--green);
 }
 
 @media (max-width: 720px) {
@@ -2735,8 +2752,14 @@ a.quick-card:hover {
 .demo-call-dialog {
   width: min(680px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
-  display: flex;
   flex-direction: column;
+}
+
+/* Qualified by [open], because an unqualified `display` beats the user agent's
+   `dialog:not([open]) { display: none }` — which left the closed dialog laid
+   out at the foot of every page that mounts one. */
+.demo-call-dialog[open] {
+  display: flex;
 }
 
 .demo-call-dialog .lead-dialog-head h2 {
