@@ -1519,6 +1519,86 @@ a.quick-card:hover {
   font-size: 12.5px;
 }
 
+/* Lead picker for a campaign: a scrolling checklist inside the dialog. */
+.attach-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+.attach-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 8px;
+}
+
+.attach-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.attach-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.attach-list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.attach-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.attach-row:hover {
+  background: var(--surface-soft);
+}
+
+.attach-row input {
+  margin-top: 2px;
+}
+
+.attach-row > span {
+  display: grid;
+  gap: 2px;
+}
+
+.attach-sub {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.attach-empty {
+  padding: 16px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* Confirmation counterpart to .form-alert, for a non-error result. */
+.form-notice {
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid #ccefe0;
+}
+
 .agent-card-new {
   align-items: flex-start;
   text-align: left;

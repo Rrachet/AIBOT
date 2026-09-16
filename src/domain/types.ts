@@ -4,6 +4,9 @@ export type LeadStatus =
   | 'NEW' | 'QUEUED' | 'CALLING' | 'CONTACTED' | 'NO_ANSWER'
   | 'FAILED' | 'QUALIFIED' | 'NOT_INTERESTED' | 'FOLLOW_UP' | 'COMPLETED';
 
+export type CampaignStatus =
+  | 'DRAFT' | 'READY' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
 export type CallStatus =
   | 'QUEUED' | 'RINGING' | 'IN_PROGRESS' | 'COMPLETED'
   | 'NO_ANSWER' | 'FAILED' | 'CANCELLED';
@@ -37,6 +40,30 @@ export interface Agent {
   voiceProvider: string | null;
   voiceId: string | null;
   active: boolean;
+}
+
+export interface Campaign {
+  id: string;
+  workspaceId: string;
+  name: string;
+  agentId: string;
+  agentName: string | null;
+  status: CampaignStatus;
+  maxAttempts: number;
+  whatsappFallbackEnabled: boolean;
+  whatsappFallbackDelayMinutes: number;
+  createdAt: string;
+}
+
+/** A lead attached to a campaign, with the progress columns that already exist. */
+export interface CampaignMember {
+  leadId: string;
+  name: string | null;
+  phone: string;
+  company: string | null;
+  status: LeadStatus;
+  attempts: number;
+  lastAttemptAt: string | null;
 }
 
 export interface InitiateCallInput {

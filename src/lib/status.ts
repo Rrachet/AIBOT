@@ -1,4 +1,4 @@
-import type { CallOutcome, CallStatus, LeadStatus } from '@/domain/types';
+import type { CallOutcome, CallStatus, CampaignStatus, LeadStatus } from '@/domain/types';
 
 /**
  * Visual tones available to badges. Kept deliberately small so status colour
@@ -30,6 +30,15 @@ export const LEAD_STATUS_DISPLAY: Record<LeadStatus, StatusDisplay> = {
   NOT_INTERESTED: { label: 'Not interested', tone: 'red' },
   FOLLOW_UP: { label: 'Follow-up', tone: 'purple' },
   COMPLETED: { label: 'Completed', tone: 'gray' },
+};
+
+export const CAMPAIGN_STATUS_DISPLAY: Record<CampaignStatus, StatusDisplay> = {
+  DRAFT: { label: 'Draft', tone: 'gray' },
+  READY: { label: 'Ready', tone: 'gray' },
+  RUNNING: { label: 'Running', tone: 'purple' },
+  PAUSED: { label: 'Paused', tone: 'amber' },
+  COMPLETED: { label: 'Completed', tone: 'green' },
+  CANCELLED: { label: 'Cancelled', tone: 'red' },
 };
 
 export const CALL_STATUS_DISPLAY: Record<CallStatus, StatusDisplay> = {
