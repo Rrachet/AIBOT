@@ -1,3 +1,5 @@
+import type { IconName } from '@/components/icons';
+import type { ActivityType } from '@/lib/api/activity';
 import type {
   CallOutcome,
   CallStatus,
@@ -81,6 +83,30 @@ export const FOLLOW_UP_CHANNEL_LABEL: Record<FollowUpChannel, string> = {
   PHONE: 'Phone',
   EMAIL: 'Email',
 };
+
+/**
+ * How a timeline entry is shown.
+ *
+ * Kept here rather than imported from the writer module so a client component
+ * rendering the feed does not pull the server-side activity writer into the
+ * browser bundle.
+ */
+export const ACTIVITY_DISPLAY: Record<ActivityType, { label: string; icon: IconName }> = {
+  LEAD_CREATED: { label: 'Lead added', icon: 'users' },
+  LEAD_IMPORTED: { label: 'Lead imported', icon: 'upload' },
+  LEAD_UPDATED: { label: 'Lead updated', icon: 'users' },
+  CAMPAIGN_ATTACHED: { label: 'Added to campaign', icon: 'megaphone' },
+  CALL_STARTED: { label: 'Call started', icon: 'phone' },
+  CALL_COMPLETED: { label: 'Call completed', icon: 'phone' },
+  CALL_OUTCOME: { label: 'Outcome recorded', icon: 'target' },
+  FOLLOW_UP_SCHEDULED: { label: 'Follow-up scheduled', icon: 'clock' },
+  FOLLOW_UP_SENT: { label: 'Follow-up sent', icon: 'message' },
+};
+
+/** Falls back gracefully for a type the UI has not been taught yet. */
+export function activityDisplay(type: string): { label: string; icon: IconName } {
+  return ACTIVITY_DISPLAY[type as ActivityType] ?? { label: 'Activity', icon: 'sparkles' };
+}
 
 /** Initials for an avatar, e.g. "Rahul Sharma" -> "RS". */
 export function initials(name: string): string {

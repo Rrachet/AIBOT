@@ -149,14 +149,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="top-actions">
-            {current && !current.live ? (
-              <span
-                className="sample-pill"
-                title="This page has not been connected to your data yet — the figures on it are illustrative"
-              >
-                <span>Sample figures</span>
-              </span>
-            ) : null}
             <button type="button" className="icon-button" aria-label="Search">
               <Icon name="search" size={16} />
             </button>

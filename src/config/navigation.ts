@@ -13,22 +13,15 @@ export interface NavItem {
   icon: IconName;
   /** Short description used by the mobile drawer and the 404 page. */
   description: string;
-  /**
-   * True once this area reads real workspace data instead of sample records.
-   * The topbar's "Sample figures" pill shows on every route without it, so the
-   * flag must only be set once the area genuinely reads from the database —
-   * setting it early would hide the one warning that the numbers are made up.
-   */
-  live?: boolean;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Overview', href: '/', icon: 'grid', description: 'Workspace summary and next steps' },
-  { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call', live: true },
-  { label: 'AI Agents', href: '/agents', icon: 'bot', description: 'Voice agents that represent you', live: true },
-  { label: 'Campaigns', href: '/campaigns', icon: 'megaphone', description: 'Outbound calling runs', live: true },
-  { label: 'Calls', href: '/calls', icon: 'phone', description: 'Call history and outcomes', live: true },
-  { label: 'WhatsApp', href: '/whatsapp', icon: 'message', description: 'Follow-up channel', live: true },
+  { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call' },
+  { label: 'AI Agents', href: '/agents', icon: 'bot', description: 'Voice agents that represent you' },
+  { label: 'Campaigns', href: '/campaigns', icon: 'megaphone', description: 'Outbound calling runs' },
+  { label: 'Calls', href: '/calls', icon: 'phone', description: 'Call history and outcomes' },
+  { label: 'WhatsApp', href: '/whatsapp', icon: 'message', description: 'Follow-up channel' },
   { label: 'Analytics', href: '/analytics', icon: 'chart', description: 'Outreach performance' },
   { label: 'Settings', href: '/settings', icon: 'settings', description: 'Workspace configuration' },
 ] as const;
