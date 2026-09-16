@@ -55,6 +55,26 @@ unexchanged code in the URL and bounce straight back to `/login`. The origin
 comes from `NEXT_PUBLIC_SITE_URL` when set, and otherwise from the request, so
 localhost and preview deployments work with no configuration.
 
+### One canonical origin
+
+A Vercel project answers on several `.vercel.app` hostnames at once. Left
+alone, the origin above is whichever one the visitor happened to use, so the
+emailed link points back at that hostname — and every hostname then has to be
+on Supabase's allow-list or the link breaks.
+
+Setting `NEXT_PUBLIC_SITE_URL` to the canonical origin resolves that in one
+place. It fixes the address in the confirmation email, and `src/proxy.ts`
+redirects production traffic that arrives on any other hostname to it, keeping
+the path and query intact. The redirect is deliberately narrow: production
+only, so preview deployments keep their own hostnames, and safe methods only,
+so a Server Action is never replayed across origins. Unset, none of it
+activates and the deployment serves every hostname as before.
+
+The proxy also forwards a confirmation `code` that arrives at `/` to
+`/auth/callback`. Supabase refuses an `emailRedirectTo` that is not on its
+allow-list and falls back to the Site URL *silently*, which otherwise strands
+the code on the dashboard and looks exactly like a dead link.
+
 **The link must be opened in the browser that started the signup.** The
 exchange uses the PKCE verifier stored as a cookie by `signUp()`; a link opened
 on another device fails at the exchange rather than signing anyone in, and the

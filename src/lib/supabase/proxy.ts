@@ -12,6 +12,74 @@ function isApiPath(pathname: string): boolean {
   return pathname.startsWith('/api/')
 }
 
+/**
+ * The canonical origin this deployment should be reached on.
+ *
+ * Only set deliberately, via `NEXT_PUBLIC_SITE_URL`. Left unset, nothing below
+ * changes behaviour, so a deployment without it keeps serving every hostname
+ * it is aliased to.
+ */
+function canonicalOrigin(): URL | null {
+  // Read both ways for the same reason `lib/supabase/env.ts` does: Next
+  // replaces the literal `process.env.NAME` form at build time, so a bundle
+  // compiled before the variable existed would ignore it forever. A computed
+  // key is not replaced and reads the running environment.
+  const configured =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env['NEXT_PUBLIC_SITE_URL']?.trim()
+  if (!configured) return null
+  try {
+    return new URL(configured)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sends a request that arrived on a secondary hostname to the canonical one,
+ * so a project with several `.vercel.app` aliases still has a single address
+ * that sessions, cookies and emailed links all agree on.
+ *
+ * Deliberately narrow:
+ * - production only, so preview deployments keep their own hostnames;
+ * - safe methods only, because redirecting a Server Action across origins
+ *   would fail its origin check rather than replay it;
+ * - path and query preserved, so a confirmation link survives the hop.
+ */
+function canonicalRedirect(request: NextRequest): NextResponse | null {
+  if (process.env.VERCEL_ENV !== 'production') return null
+  if (request.method !== 'GET' && request.method !== 'HEAD') return null
+
+  const canonical = canonicalOrigin()
+  if (!canonical) return null
+
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+  if (!host || host === canonical.host) return null
+
+  const target = new URL(request.nextUrl.pathname + request.nextUrl.search, canonical)
+  return NextResponse.redirect(target, 308)
+}
+
+/**
+ * Rescues a confirmation code that Supabase delivered to the site root.
+ *
+ * Supabase refuses an `emailRedirectTo` that is not on its allow-list and
+ * silently falls back to the Site URL instead of reporting it. The code then
+ * lands on `/`, is never exchanged, and the visitor is bounced to /login as
+ * though the link were dead. Forwarding it to the callback makes the link work
+ * and leaves the exchange exactly where it was.
+ */
+function strayConfirmationCode(request: NextRequest): NextResponse | null {
+  if (request.method !== 'GET') return null
+  if (request.nextUrl.pathname !== '/') return null
+
+  const code = request.nextUrl.searchParams.get('code')
+  if (!code) return null
+
+  const callback = request.nextUrl.clone()
+  callback.pathname = '/auth/callback'
+  return NextResponse.redirect(callback)
+}
+
 function unauthenticatedJson() {
   return NextResponse.json(
     { error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } },
@@ -30,6 +98,12 @@ function unauthenticatedJson() {
  * response carrying rotated auth cookies out of any shared cache.
  */
 export async function updateSession(request: NextRequest) {
+  const canonical = canonicalRedirect(request)
+  if (canonical) return canonical
+
+  const stray = strayConfirmationCode(request)
+  if (stray) return stray
+
   let response = NextResponse.next({ request })
 
   const pathname = request.nextUrl.pathname
