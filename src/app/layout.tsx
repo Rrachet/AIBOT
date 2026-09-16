@@ -1,11 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { DM_Sans, Manrope } from 'next/font/google';
 import './globals.css';
+import './marketing.css';
 
-/**
- * Fonts are self-hosted by Next at build time. This removes the render-blocking
- * request to Google Fonts and eliminates the layout shift a CSS @import causes.
- */
 const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -22,19 +19,17 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: 'AIBOT — AI lead engagement',
+    default: 'AIBOT — AI lead conversion engine',
     template: '%s · AIBOT',
   },
-  description: 'Turn leads into conversations with AI calling and WhatsApp follow-up.',
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-  },
+  description: 'Call, understand, qualify and follow up with every lead using AI that speaks your customer’s language.',
+  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#ffffff',
+  themeColor: '#151515',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
