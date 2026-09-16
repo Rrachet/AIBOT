@@ -1,6 +1,6 @@
 import { login, signup } from './actions'
 import { safeNextPath } from '@/lib/auth/redirect'
-import { missingSupabaseEnv } from '@/lib/supabase/env'
+import { missingSupabaseEnv, visibleSupabaseEnvNames } from '@/lib/supabase/env'
 
 const messages: Record<string, string> = {
   invalid_credentials: 'The email or password is incorrect.',
@@ -36,7 +36,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     missing === null
       ? undefined
       : missing.length > 0
-        ? `Not set on this server: ${missing.join(' and ')}.`
+        ? `Not set on this server: ${missing.join(' and ')}. Supabase names visible here: ${
+            visibleSupabaseEnvNames().join(', ') || 'none'
+          }.`
         : 'This page can read the configuration, so the request was refused by an older build. Redeploy without the build cache.'
   const message = typeof params.message === 'string' ? messages[params.message] : undefined
   const next = safeNextPath(params.next)

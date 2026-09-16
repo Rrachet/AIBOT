@@ -101,3 +101,18 @@ export function missingSupabaseEnv(): string[] {
   if (!key()) missing.push('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
   return missing
 }
+
+/**
+ * Supabase-related variable names this server can actually see, so a
+ * misconfiguration names itself: a typo, a stray space or the wrong prefix
+ * shows up here instead of looking identical to "not set at all".
+ *
+ * Restricted to names containing SUPABASE, so nothing else about the
+ * environment is disclosed, and values are never read.
+ */
+export function visibleSupabaseEnvNames(): string[] {
+  if (typeof process === 'undefined' || !process.env) return []
+  return Object.keys(process.env)
+    .filter((name) => name.toUpperCase().includes('SUPABASE'))
+    .sort()
+}
