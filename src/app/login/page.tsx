@@ -1,5 +1,6 @@
 import { login, signup } from './actions'
 import { safeNextPath } from '@/lib/auth/redirect'
+import { missingSupabaseEnv } from '@/lib/supabase/env'
 
 const messages: Record<string, string> = {
   invalid_credentials: 'The email or password is incorrect.',
@@ -25,6 +26,18 @@ const messages: Record<string, string> = {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const error = typeof params.error === 'string' ? messages[params.error] : undefined
+
+  // Which of the two cases this is, said plainly. A deployment can be missing
+  // its configuration, or be serving a build made before the configuration
+  // existed — the remedies differ and the generic message fits both. Names
+  // only; no value is ever rendered.
+  const missing = params.error === 'configuration_error' ? missingSupabaseEnv() : null
+  const configDetail =
+    missing === null
+      ? undefined
+      : missing.length > 0
+        ? `Not set on this server: ${missing.join(' and ')}.`
+        : 'This page can read the configuration, so the request was refused by an older build. Redeploy without the build cache.'
   const message = typeof params.message === 'string' ? messages[params.message] : undefined
   const next = safeNextPath(params.next)
 
@@ -37,7 +50,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p>Sign in to manage your AI lead engagement workspace.</p>
         </div>
 
-        {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+        {error ? (
+          <div className="auth-alert auth-alert-error">
+            {error}
+            {configDetail ? <span className="auth-alert-detail">{configDetail}</span> : null}
+          </div>
+        ) : null}
         {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
 
         <form className="auth-form" action={login}>
