@@ -103,8 +103,16 @@ comes back to `/login` with an error. Add every origin the app is served from.
 
 **4. Project Settings → Authentication → SMTP**
 
-The built-in sender is rate-limited and meant for development. Point Supabase at
-a real SMTP provider before anyone outside the team signs up.
+Custom SMTP is not optional for anything but a private test. The built-in sender
+**refuses to deliver to any address that is not a member of the project's team**,
+and caps everyone at **two emails per hour**. Both limits are enforced by
+Supabase and surface here as a failed signup: the account is not created, and
+`/login` says the confirmation email could not be sent, or that too many have
+been sent recently. Point Supabase at a real SMTP provider before anyone outside
+the team signs up.
+
+Supabase also rejects addresses it considers invalid — `@example.com` and other
+reserved or MX-less domains — with a 400 before any email is attempted.
 
 ### Workspaces
 
