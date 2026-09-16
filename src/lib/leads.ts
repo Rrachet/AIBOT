@@ -131,41 +131,6 @@ export async function createLead(input: CreateLeadInput): Promise<Lead> {
   return lead
 }
 
-/* -------------------------------------------------------------------------- */
-/* Formatting                                                                 */
-/* -------------------------------------------------------------------------- */
-
-const MINUTE = 60_000
-const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
-
-/**
- * Short relative label for the "Updated" column. Computed in the browser only,
- * so it cannot cause a hydration mismatch.
- */
-export function formatRelativeTime(iso: string, now: number = Date.now()): string {
-  const timestamp = Date.parse(iso)
-  if (Number.isNaN(timestamp)) return '—'
-
-  const elapsed = now - timestamp
-  if (elapsed < MINUTE) return 'just now'
-  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`
-  if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)} hr ago`
-  if (elapsed < 7 * DAY) {
-    const days = Math.floor(elapsed / DAY)
-    return days === 1 ? 'yesterday' : `${days} days ago`
-  }
-
-  return new Date(timestamp).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-/** Full timestamp, shown on hover so the relative label stays unambiguous. */
-export function formatAbsoluteTime(iso: string): string {
-  const timestamp = Date.parse(iso)
-  if (Number.isNaN(timestamp)) return ''
-  return new Date(timestamp).toLocaleString()
-}
-
 /** Display name for a lead, which the database allows to be null. */
 export function leadDisplayName(lead: Lead): string {
   return lead.name?.trim() || 'Unnamed lead'

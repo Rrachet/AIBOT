@@ -1,4 +1,11 @@
-import type { CallOutcome, CallStatus, CampaignStatus, LeadStatus } from '@/domain/types';
+import type {
+  CallOutcome,
+  CallStatus,
+  CampaignStatus,
+  FollowUpChannel,
+  FollowUpStatus,
+  LeadStatus,
+} from '@/domain/types';
 
 /**
  * Visual tones available to badges. Kept deliberately small so status colour
@@ -59,6 +66,20 @@ export const CALL_OUTCOME_DISPLAY: Record<CallOutcome, StatusDisplay> = {
   QUALIFIED: { label: 'Qualified', tone: 'green' },
   NOT_INTERESTED: { label: 'Not interested', tone: 'red' },
   FOLLOW_UP: { label: 'Follow-up', tone: 'purple' },
+};
+
+export const FOLLOW_UP_STATUS_DISPLAY: Record<FollowUpStatus, StatusDisplay> = {
+  PENDING: { label: 'Pending', tone: 'purple' },
+  SENT: { label: 'Sent', tone: 'green' },
+  FAILED: { label: 'Failed', tone: 'red' },
+  CANCELLED: { label: 'Cancelled', tone: 'gray' },
+  COMPLETED: { label: 'Completed', tone: 'green' },
+};
+
+export const FOLLOW_UP_CHANNEL_LABEL: Record<FollowUpChannel, string> = {
+  WHATSAPP: 'WhatsApp',
+  PHONE: 'Phone',
+  EMAIL: 'Email',
 };
 
 /** Initials for an avatar, e.g. "Rahul Sharma" -> "RS". */

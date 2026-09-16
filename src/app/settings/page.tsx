@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { SectionPage } from '@/components/section-page';
 import { Card, CardHeader } from '@/components/ui/card';
-import { WORKSPACE } from '@/lib/demo-data';
 import { requireUser } from '@/lib/auth/require-user';
+import { WorkspaceNameField } from './components/workspace-name-field';
 
 export const metadata: Metadata = { title: 'Settings' };
 
@@ -24,15 +24,7 @@ export default async function SettingsPage() {
         <CardHeader title="Workspace" subtitle="Basic information for your AIBOT account" />
         <div className="card-body">
           <div className="form-grid">
-            <label className="field">
-              <span className="field-label">Workspace name</span>
-              <input
-                className="field-input"
-                name="workspaceName"
-                defaultValue={WORKSPACE.name}
-                autoComplete="organization"
-              />
-            </label>
+            <WorkspaceNameField />
 
             <label className="field">
               <span className="field-label">Business description</span>

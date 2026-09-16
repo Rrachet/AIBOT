@@ -1,4 +1,4 @@
-import type { CallOutcome, CallStatus, LeadStatus, LeadSource } from '@/domain/types';
+import type { LeadStatus, LeadSource } from '@/domain/types';
 import type { IconName } from '@/components/icons';
 
 /**
@@ -10,10 +10,15 @@ import type { IconName } from '@/components/icons';
  * backend exists. Nothing here calls a network, and no view should ever treat
  * these as real workspace data.
  *
- * Phase 3 (Supabase) replaces every import of this module with a real,
- * workspace-scoped query. The Leads page has already moved: it reads from
- * `/api/leads` via `src/lib/leads.ts`. `DEMO_LEADS` below is still used by the
- * dashboard's "Recent leads" card and is NOT what /leads renders.
+ * Each view is migrated off this module as its API is built. Leads, Agents,
+ * Campaigns, Calls and WhatsApp have all moved and read from the database;
+ * what is left here is used only by Overview and Analytics, which have not.
+ * `DEMO_LEADS` is the dashboard's "Recent leads" card and is NOT what /leads
+ * renders.
+ *
+ * The topbar shows a "Sample figures" pill on every route not yet marked
+ * `live` in `src/config/navigation.ts`, so a page still reading from here says
+ * so on screen.
  *
  * When the last view is migrated, DELETE THIS FILE — a passing type-check
  * afterwards proves no view still depends on sample data.
@@ -22,9 +27,6 @@ import type { IconName } from '@/components/icons';
  * real rows is a change of source, not a rewrite of the views.
  * ============================================================================
  */
-
-/** Rendered in the topbar so sample data is never mistaken for live data. */
-export const IS_SAMPLE_DATA = true;
 
 export const WORKSPACE = {
   name: 'Thrii Workspace',
@@ -180,74 +182,6 @@ export const DEMO_CAMPAIGNS: readonly DemoCampaign[] = [
       qualified: 31,
       followUp: 22,
     },
-  },
-] as const;
-
-/* -------------------------------------------------------------------------- */
-/* Calls                                                                      */
-/* -------------------------------------------------------------------------- */
-
-export interface DemoCall {
-  id: string;
-  leadName: string;
-  leadCompany: string;
-  agentName: string;
-  timeLabel: string;
-  durationSeconds: number;
-  status: CallStatus;
-  outcome: CallOutcome | null;
-}
-
-export const DEMO_CALLS: readonly DemoCall[] = [
-  {
-    id: 'cl_01',
-    leadName: 'Rahul Sharma',
-    leadCompany: 'Acme Technologies',
-    agentName: 'Maya',
-    timeLabel: 'Today, 2:18 PM',
-    durationSeconds: 272,
-    status: 'COMPLETED',
-    outcome: 'QUALIFIED',
-  },
-  {
-    id: 'cl_02',
-    leadName: 'Karan Malhotra',
-    leadCompany: 'Bluepeak Retail',
-    agentName: 'Maya',
-    timeLabel: 'Today, 2:14 PM',
-    durationSeconds: 96,
-    status: 'IN_PROGRESS',
-    outcome: null,
-  },
-  {
-    id: 'cl_03',
-    leadName: 'Priya Mehta',
-    leadCompany: 'Northstar Labs',
-    agentName: 'Maya',
-    timeLabel: 'Today, 2:06 PM',
-    durationSeconds: 0,
-    status: 'NO_ANSWER',
-    outcome: 'NO_ANSWER',
-  },
-  {
-    id: 'cl_04',
-    leadName: 'Arjun Kapoor',
-    leadCompany: 'Orbit Systems',
-    agentName: 'Maya',
-    timeLabel: 'Today, 1:52 PM',
-    durationSeconds: 188,
-    status: 'COMPLETED',
-    outcome: 'FOLLOW_UP',
-  },
-  {
-    id: 'cl_05',
-    leadName: 'Sneha Rao',
-    leadCompany: 'Vertex Digital',
-    agentName: 'Maya',
-    timeLabel: 'Today, 1:37 PM',
-    durationSeconds: 141,
-    status: 'COMPLETED',
-    outcome: 'NOT_INTERESTED',
   },
 ] as const;
 

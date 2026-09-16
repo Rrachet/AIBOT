@@ -7,13 +7,8 @@ import { StatusBadge } from '@/components/ui/badge';
 import { DataTable, EntityCell } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LEAD_STATUS_DISPLAY, initials } from '@/lib/status';
-import {
-  LEAD_SOURCE_LABEL,
-  formatAbsoluteTime,
-  formatRelativeTime,
-  leadDisplayName,
-  leadSecondaryLine,
-} from '@/lib/leads';
+import { LEAD_SOURCE_LABEL, leadDisplayName, leadSecondaryLine } from '@/lib/leads';
+import { formatAbsoluteTime, formatRelativeTime } from '@/lib/format';
 import type { Lead, LeadStatus } from '@/domain/types';
 
 const COLUMNS = [

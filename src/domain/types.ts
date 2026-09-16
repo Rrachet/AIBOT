@@ -86,3 +86,60 @@ export interface VoiceProvider {
   getRecording?(providerCallId: string): Promise<string | null>;
   getTranscript?(providerCallId: string): Promise<string | null>;
 }
+
+export type FollowUpChannel = 'WHATSAPP' | 'PHONE' | 'EMAIL';
+
+export type FollowUpStatus = 'PENDING' | 'SENT' | 'FAILED' | 'CANCELLED' | 'COMPLETED';
+
+/**
+ * A call as the UI reads it.
+ *
+ * `simulated` is not a database column; it is read from `metadata.simulated`,
+ * which the demo runner stamps on every row it writes. The UI keys its
+ * "Demo call" labelling off this, so a simulated call can never be presented
+ * as one that reached a real phone.
+ */
+export interface Call {
+  id: string;
+  workspaceId: string;
+  leadId: string;
+  leadName: string | null;
+  leadCompany: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  agentId: string | null;
+  agentName: string | null;
+  phoneNumber: string;
+  status: CallStatus;
+  outcome: CallOutcome | null;
+  durationSeconds: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  provider: string | null;
+  simulated: boolean;
+}
+
+/** A call plus the parts only its own page shows. */
+export interface CallDetail extends Call {
+  transcript: string | null;
+  summary: string | null;
+  nextAction: string | null;
+  followUps: FollowUp[];
+}
+
+export interface FollowUp {
+  id: string;
+  workspaceId: string;
+  leadId: string;
+  leadName: string | null;
+  leadPhone: string | null;
+  callId: string | null;
+  channel: FollowUpChannel;
+  status: FollowUpStatus;
+  scheduledAt: string;
+  sentAt: string | null;
+  messageTemplate: string | null;
+  provider: string | null;
+  simulated: boolean;
+}

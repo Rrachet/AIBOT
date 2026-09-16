@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from './icons';
 import { NAV_ITEMS, findNavItem } from '@/config/navigation';
-import { IS_SAMPLE_DATA, WORKSPACE } from '@/lib/demo-data';
+import { fetchWorkspace, workspaceInitial, type WorkspaceIdentity } from '@/lib/workspace';
 
 /**
  * Application chrome: sidebar, topbar and mobile drawer.
@@ -17,6 +17,7 @@ import { IS_SAMPLE_DATA, WORKSPACE } from '@/lib/demo-data';
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const current = findNavItem(pathname);
+  const workspace = useWorkspace();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -106,11 +107,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <button type="button" className="workspace">
           <span className="workspace-avatar" aria-hidden="true">
-            {WORKSPACE.initial}
+            {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
           </span>
           <span className="workspace-copy">
-            <strong>{WORKSPACE.name}</strong>
-            <span>{WORKSPACE.plan}</span>
+            <strong>{workspace?.workspaceName || 'Loading…'}</strong>
+            <span>{workspace?.role ? roleLabel(workspace.role) : 'Workspace'}</span>
           </span>
           <Icon name="chevron-down" size={14} />
         </button>
@@ -148,9 +149,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="top-actions">
-            {IS_SAMPLE_DATA && !current?.live ? (
-              <span className="sample-pill" title="This workspace is showing sample data">
-                <span>Sample data</span>
+            {current && !current.live ? (
+              <span
+                className="sample-pill"
+                title="This page has not been connected to your data yet — the figures on it are illustrative"
+              >
+                <span>Sample figures</span>
               </span>
             ) : null}
             <button type="button" className="icon-button" aria-label="Search">
@@ -160,7 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Icon name="bell" size={16} />
             </button>
             <div className="avatar" aria-hidden="true">
-              {WORKSPACE.userInitials}
+              {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
             </div>
           </div>
         </header>
@@ -210,6 +214,37 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Reads the signed-in workspace once per mount.
+ *
+ * The name is never compiled into the build: it comes from `/api/me`, which
+ * resolves it from the session's membership row. Until it arrives the shell
+ * shows a placeholder rather than a plausible-looking name that belongs to
+ * nobody. A failure is left silent — the shell is chrome, and a workspace name
+ * that cannot be read is not worth an error over the page inside it.
+ */
+function useWorkspace(): WorkspaceIdentity | null {
+  const [workspace, setWorkspace] = useState<WorkspaceIdentity | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchWorkspace(controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setWorkspace(result);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  return workspace;
+}
+
+/** `workspace_members.role` as a person would read it. */
+function roleLabel(role: string): string {
+  if (!role) return 'Workspace';
+  return role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, ' ');
 }
 
 /**
