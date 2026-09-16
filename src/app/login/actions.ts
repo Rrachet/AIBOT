@@ -98,17 +98,17 @@ export async function signup(formData: FormData) {
 
   if (!parsed.success) {
     const fields = new Set(parsed.error.issues.map((issue) => String(issue.path[0])))
-    if (fields.has('confirm')) redirect('/login?error=password_mismatch')
-    if (fields.has('password')) redirect('/login?error=password_too_short')
-    if (fields.has('email')) redirect('/login?error=invalid_email')
-    redirect('/login?error=invalid_signup')
+    if (fields.has('confirm')) redirect('/signup?error=password_mismatch')
+    if (fields.has('password')) redirect('/signup?error=password_too_short')
+    if (fields.has('email')) redirect('/signup?error=invalid_email')
+    redirect('/signup?error=invalid_signup')
   }
 
   let supabase
   try {
     supabase = await createClient()
   } catch (error) {
-    if (error instanceof SupabaseConfigError) redirect('/login?error=configuration_error')
+    if (error instanceof SupabaseConfigError) redirect('/signup?error=configuration_error')
     throw error
   }
 
@@ -140,32 +140,32 @@ export async function signup(formData: FormData) {
     console.error(`signup rejected by Supabase (status ${error.status ?? 'unknown'}): ${reason}`)
 
     if (error.status === 429 || /rate limit/i.test(reason)) {
-      redirect('/login?error=signup_rate_limited')
+      redirect('/signup?error=signup_rate_limited')
     }
     if (/sending confirmation|error sending|smtp|email address .* invalid/i.test(reason)) {
-      redirect('/login?error=signup_email_failed')
+      redirect('/signup?error=signup_email_failed')
     }
     if (/signups? (not allowed|are disabled|disabled)/i.test(reason)) {
-      redirect('/login?error=signup_disabled')
+      redirect('/signup?error=signup_disabled')
     }
     if (/password/i.test(reason)) {
-      redirect('/login?error=password_rejected')
+      redirect('/signup?error=password_rejected')
     }
-    redirect('/login?error=signup_failed')
+    redirect('/signup?error=signup_failed')
   }
 
   // A session here means the project has email confirmation switched off, so
   // the account is already usable and there is no link to click. This is
   // checked first: a session proves the signup succeeded, whatever else the
   // response contains.
-  if (data.session) redirect('/')
+  if (data.session) redirect('/dashboard')
 
   // With confirmations on, Supabase does not reveal that an address is already
   // registered: it returns a user with no identities and no session instead of
   // an error. Say so plainly rather than sending the user to wait for an email
   // that will not arrive.
   if (data.user && (data.user.identities?.length ?? 0) === 0) {
-    redirect('/login?error=email_taken')
+    redirect('/signup?error=email_taken')
   }
 
   redirect('/login?message=check_email')

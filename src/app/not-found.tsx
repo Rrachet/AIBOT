@@ -14,10 +14,10 @@ export default function NotFound() {
         <EmptyState
           icon="search"
           title="We couldn't find that page"
-          description="The link may be out of date, or the page may have moved. Head back to your workspace overview to continue."
+          description="The link may be out of date, or the page may have moved. Head back to your dashboard to continue."
           actions={
-            <Link className="primary-button" href="/">
-              Back to overview
+            <Link className="primary-button" href="/dashboard">
+              Back to dashboard
             </Link>
           }
         />

@@ -32,14 +32,14 @@ export default function Error({
         <EmptyState
           icon="alert"
           title="This page could not be displayed"
-          description="If the problem continues, refresh the page or return to your workspace overview."
+          description="If the problem continues, refresh the page or return to your dashboard."
           actions={
             <>
               <button type="button" className="primary-button" onClick={reset}>
                 Try again
               </button>
-              <a className="secondary-button" href="/">
-                Back to overview
+              <a className="secondary-button" href="/dashboard">
+                Back to dashboard
               </a>
             </>
           }

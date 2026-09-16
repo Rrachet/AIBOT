@@ -2,9 +2,17 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseEnv } from './env'
 
-/** Paths that must stay reachable without a session. */
+/**
+ * Paths that must stay reachable without a session.
+ *
+ * The marketing site and the two auth screens are public; everything else in
+ * the application still requires one. `/` is public because it is now the
+ * homepage rather than the dashboard.
+ */
+const PUBLIC_PATHS = new Set(['/', '/pricing', '/login', '/signup'])
+
 function isPublicPath(pathname: string): boolean {
-  return pathname === '/login' || pathname.startsWith('/auth/')
+  return PUBLIC_PATHS.has(pathname) || pathname.startsWith('/auth/')
 }
 
 /** API routes answer with JSON and must never be redirected to /login. */
@@ -169,9 +177,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // An authenticated visitor has no use for the login screen.
-  if (pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url))
+  // An authenticated visitor has no use for the sign-in screens. The homepage
+  // and pricing stay reachable, because a signed-in user may still want to
+  // read them.
+  if (pathname === '/login' || pathname === '/signup') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response

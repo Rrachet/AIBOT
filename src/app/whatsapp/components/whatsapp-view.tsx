@@ -2,25 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Icon } from '@/components/icons';
 import { SectionPage } from '@/components/section-page';
 import { Card, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { StatusBadge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
 import type { FollowUp } from '@/domain/types';
 import { ApiError } from '@/lib/api/client';
-import { fetchFollowUps, followUpLeadName } from '@/lib/follow-ups';
-import { formatDateTime } from '@/lib/format';
-import { FOLLOW_UP_CHANNEL_LABEL, FOLLOW_UP_STATUS_DISPLAY } from '@/lib/status';
+import { fetchFollowUps } from '@/lib/follow-ups';
 import { WhatsAppPreview } from './whatsapp-preview';
 
 /**
- * How many message previews to render.
+ * The message centre.
  *
- * Every follow-up in the table used to get its own preview card, which on a
- * workspace with a few dozen of them produced a page metres long that nobody
- * could scan. The table above is the complete list; these are the ones worth
- * looking at, which means the ones still waiting to go out.
+ * `/follow-ups` owns the queue — what is owed, to whom, and when. This page
+ * owns the message itself: exactly what would arrive on the lead's phone,
+ * rendered from the stored row rather than a mock-up. Splitting the two keeps
+ * this page scannable; the previous single page put a metre of bubbles under
+ * a table nobody could then get back to.
+ */
+
+/**
+ * How many previews to render. The queue is the complete list; these are the
+ * ones worth reading, which means the ones still waiting to go out.
  */
 const PREVIEW_LIMIT = 6;
 
@@ -30,14 +33,6 @@ function previewSelection(followUps: readonly FollowUp[]): string[] {
   const rest = followUps.filter((item) => item.status !== 'PENDING');
   return [...pending, ...rest].slice(0, PREVIEW_LIMIT).map((item) => item.id);
 }
-
-const COLUMNS = [
-  { key: 'lead', header: 'Lead' },
-  { key: 'channel', header: 'Channel' },
-  { key: 'status', header: 'Status' },
-  { key: 'scheduled', header: 'Scheduled' },
-  { key: 'sent', header: 'Sent' },
-] as const;
 
 type LoadState =
   | { phase: 'loading' }
@@ -96,9 +91,15 @@ export function WhatsAppView() {
 
   return (
     <SectionPage
-      eyebrow="Follow-up channel"
+      eyebrow="Message centre"
       title="WhatsApp"
-      subtitle="Turn missed calls into conversations without losing context."
+      subtitle="Read the message before it goes out, and send it from here."
+      actions={
+        <Link className="secondary-button" href="/follow-ups">
+          <Icon name="clock" size={15} />
+          Open the queue
+        </Link>
+      }
     >
       <p className="demo-banner" role="note">
         <strong>Demo / Simulated WhatsApp.</strong> No WhatsApp Business account is connected to
@@ -109,10 +110,12 @@ export function WhatsAppView() {
 
       <Card>
         <CardHeader
-          title="Follow-ups"
+          title="Messages"
           subtitle={
             state.phase === 'ready'
-              ? `${followUps.length.toLocaleString()} scheduled · ${pending.length.toLocaleString()} waiting to go out`
+              ? previews.length < followUps.length
+                ? `${pending.length.toLocaleString()} waiting to go out · showing ${previews.length} of ${followUps.length}`
+                : `${pending.length.toLocaleString()} waiting to go out`
               : 'Loading…'
           }
         />
@@ -120,12 +123,13 @@ export function WhatsAppView() {
         {state.phase === 'loading' ? (
           <div className="card-body">
             <span className="skeleton" style={{ width: 240 }} />
+            <span className="skeleton" style={{ width: 300, marginTop: 10 }} />
             <span className="skeleton" style={{ width: 180, marginTop: 10 }} />
           </div>
         ) : state.phase === 'error' ? (
           <EmptyState
             icon="alert"
-            title="We could not load your follow-ups"
+            title="We could not load your messages"
             description={state.message}
             actions={
               <button type="button" className="secondary-button" onClick={() => void load()}>
@@ -133,60 +137,33 @@ export function WhatsAppView() {
               </button>
             }
           />
-        ) : followUps.length === 0 ? (
+        ) : previews.length === 0 ? (
           <EmptyState
             icon="message"
-            title="No follow-ups yet"
-            description="When a campaign call goes unanswered or a lead asks to be contacted later, the follow-up is scheduled here."
+            title="No messages yet"
+            description="When a campaign call goes unanswered or a lead asks to be contacted later, AIBOT writes the follow-up message and it appears here, ready to read and send."
             actions={
               <Link className="primary-button" href="/campaigns">
-                Go to campaigns
+                Run a campaign
               </Link>
             }
           />
         ) : (
-          <DataTable columns={COLUMNS} caption="Follow-ups for this workspace">
-            {followUps.map((followUp) => (
-              <tr key={followUp.id}>
-                <td>
-                  <div className="lead-name">
-                    <span>
-                      <strong>{followUpLeadName(followUp)}</strong>
-                      {followUp.leadPhone ? (
-                        <span className="lead-sub">{followUp.leadPhone}</span>
-                      ) : null}
-                    </span>
-                  </div>
-                </td>
-                <td className="muted">{FOLLOW_UP_CHANNEL_LABEL[followUp.channel]}</td>
-                <td>
-                  <StatusBadge status={FOLLOW_UP_STATUS_DISPLAY[followUp.status]} />
-                </td>
-                <td className="muted">{formatDateTime(followUp.scheduledAt)}</td>
-                <td className="muted">{formatDateTime(followUp.sentAt)}</td>
-              </tr>
-            ))}
-          </DataTable>
-        )}
-      </Card>
-
-      {previews.length > 0 ? (
-        <Card>
-          <CardHeader
-            title="Message preview"
-            subtitle={
-              previews.length < followUps.length
-                ? `Exactly what would be sent, as it is stored — showing ${previews.length} of ${followUps.length}`
-                : 'Exactly what would be sent, as it is stored'
-            }
-          />
           <div className="card-body follow-up-stack">
             {previews.map((followUp) => (
               <WhatsAppPreview key={followUp.id} followUp={followUp} onChange={handleChange} />
             ))}
           </div>
-        </Card>
-      ) : null}
+        )}
+
+        {state.phase === 'ready' && previews.length < followUps.length ? (
+          <div className="table-foot">
+            <Link className="table-link" href="/follow-ups">
+              See all {followUps.length.toLocaleString()} follow-ups in the queue
+            </Link>
+          </div>
+        ) : null}
+      </Card>
 
       <Card>
         <CardHeader

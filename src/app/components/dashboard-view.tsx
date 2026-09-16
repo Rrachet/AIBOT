@@ -496,8 +496,8 @@ function attentionItems(summary: AnalyticsSummary): AttentionItem[] {
       tone: 'amber',
       title: `${pending.toLocaleString()} ${pending === 1 ? 'follow-up is' : 'follow-ups are'} waiting`,
       detail: 'Scheduled after a call, ready to be sent.',
-      actionLabel: 'Review',
-      href: '/whatsapp',
+      actionLabel: 'Open queue',
+      href: '/follow-ups',
     });
   }
 

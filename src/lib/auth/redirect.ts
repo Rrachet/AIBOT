@@ -6,7 +6,7 @@
  * a protocol-relative `//host`, a backslash variant some browsers normalise
  * to `//`, or a bare word — falls back to the dashboard.
  */
-export function safeNextPath(value: unknown, fallback = '/'): string {
+export function safeNextPath(value: unknown, fallback = '/dashboard'): string {
   if (typeof value !== 'string') return fallback
 
   const trimmed = value.trim()

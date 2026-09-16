@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from './icons';
-import { NAV_ITEMS, findNavItem } from '@/config/navigation';
+import { FOOTER_NAV, MAIN_NAV, NAV_ITEMS, findNavItem } from '@/config/navigation';
 import { fetchWorkspace, workspaceInitial, type WorkspaceIdentity } from '@/lib/workspace';
 
 /**
@@ -71,8 +71,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [drawerOpen, closeDrawer]);
 
-  const navLinks = (onNavigate?: () => void) =>
-    NAV_ITEMS.map((item) => {
+  const navLinks = (items: readonly (typeof NAV_ITEMS)[number][], onNavigate?: () => void) =>
+    items.map((item) => {
       const isActive = current?.href === item.href;
       return (
         <Link
@@ -98,12 +98,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
 
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true">
+        <Link className="brand" href="/dashboard">
+          <span className="brand-mark" aria-hidden="true">
             AI
-          </div>
-          <div className="brand-name">AIBOT</div>
-        </div>
+          </span>
+          <span className="brand-name">AIBOT</span>
+        </Link>
 
         <button type="button" className="workspace">
           <span className="workspace-avatar" aria-hidden="true">
@@ -118,14 +118,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="nav-label">Workspace</div>
         <nav className="nav" aria-label="Main">
-          {navLinks()}
+          {navLinks(MAIN_NAV)}
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-help">
-            <strong>Build your first campaign</strong>
-            <span>Import leads, choose an agent, and start your first AI call.</span>
-          </div>
+          <nav className="nav" aria-label="Account">
+            {navLinks(FOOTER_NAV)}
+          </nav>
           <SignOutButton />
         </div>
       </aside>
@@ -180,12 +179,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Navigation"
           >
             <div className="drawer-head">
-              <div className="brand" style={{ padding: 0 }}>
-                <div className="brand-mark" aria-hidden="true">
+              <Link className="brand" href="/dashboard" style={{ padding: 0 }}>
+                <span className="brand-mark" aria-hidden="true">
                   AI
-                </div>
-                <div className="brand-name">AIBOT</div>
-              </div>
+                </span>
+                <span className="brand-name">AIBOT</span>
+              </Link>
               <button
                 type="button"
                 className="icon-button"
@@ -196,9 +195,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="nav" aria-label="Main">
-              {navLinks(closeDrawer)}
+              {navLinks(MAIN_NAV, closeDrawer)}
             </nav>
             <div className="sidebar-bottom">
+              <nav className="nav" aria-label="Account">
+                {navLinks(FOOTER_NAV, closeDrawer)}
+              </nav>
               <SignOutButton />
             </div>
           </div>
