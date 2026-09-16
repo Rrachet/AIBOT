@@ -22,6 +22,9 @@ export async function GET(request: Request) {
     .from('leads')
     .select('*')
     .eq('workspace_id', auth.workspaceId)
+    // The holder row that campaign test calls hang off is not a lead and must
+    // never appear in the list, the pickers or the counts.
+    .not('metadata', 'cs', '{"test_call_holder": true}')
     .order('created_at', { ascending: false })
     .limit(limit)
 

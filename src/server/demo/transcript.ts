@@ -1,3 +1,5 @@
+import type { CallObjective } from '@/domain/ai-config'
+import { isForbidden, type CallContext } from './call-context'
 import { pickInRange, seedFrom, type Scenario } from './scenarios'
 
 /**
@@ -10,8 +12,14 @@ import { pickInRange, seedFrom, type Scenario } from './scenarios'
  * about service visits. Nothing is invented about the business beyond what the
  * user typed into the agent.
  *
- * Deterministic throughout: the same lead and agent always produce the same
- * transcript.
+ * When the call belongs to a configured campaign, a `CallContext` carries the
+ * campaign's product, script, questions and constraints, and those take
+ * precedence over the agent's own — see `call-context.ts` for the ordering.
+ * Without one, the agent's configuration alone drives the call exactly as
+ * before.
+ *
+ * Deterministic throughout: the same lead, agent and configuration always
+ * produce the same transcript.
  */
 
 export interface AgentContext {
@@ -81,6 +89,24 @@ function variant<T>(leadId: string, slot: string, options: readonly T[]): T {
 }
 
 /**
+ * Picks a phrasing the campaign has not forbidden.
+ *
+ * Rotation starts at the same deterministic index as `variant`, so with no
+ * constraints the wording is identical to before. When every option is
+ * forbidden the first is still returned — the alternative is a call with a
+ * hole in it, and the constraint is a preference about wording, not a reason
+ * to break the conversation.
+ */
+function allowed(leadId: string, slot: string, options: readonly string[], forbidden: readonly string[]): string {
+  const start = seedFrom(`${leadId}:${slot}`) % options.length
+  for (let step = 0; step < options.length; step += 1) {
+    const candidate = options[(start + step) % options.length]!
+    if (!isForbidden(candidate, forbidden)) return candidate
+  }
+  return options[start]!
+}
+
+/**
  * The things the agent was told to ask about, as the user wrote them.
  *
  * Instructions arrive as an imperative — "Ask about location, budget and
@@ -137,9 +163,32 @@ function spokenList(parts: readonly string[]): string {
  * speakers' turns on top of each other and the transcript stops reading as a
  * conversation.
  */
-function qualifying(agent: AgentContext, leadId: string): string[] {
-  const asked = topics(agent)
-  if (asked.length === 0) return []
+function qualifying(agent: AgentContext, leadId: string, context: CallContext | null): string[] {
+  // CAMPAIGN INSTRUCTIONS over AGENT INSTRUCTIONS: a campaign that lists what
+  // to ask replaces the agent's general instruction to ask something else.
+  const asked = context && context.topics.length > 0 ? context.topics : topics(agent)
+  const forbidden = context?.mustNotSay ?? []
+
+  // Anything the campaign requires be said, plus one fact from its knowledge
+  // if it supplied any. Knowledge is offered, not recited: only the first fact
+  // is used, so a long knowledge base does not become a monologue.
+  const obligations = [
+    ...(context?.mustSay ?? []),
+    ...(context?.knowledge ? [context.knowledge] : []),
+  ]
+
+  if (asked.length === 0) {
+    return obligations.length > 0
+      ? [
+          line('Lead', variant(leadId, 'pitch-yes', [
+            'Yes, that is the sort of thing.',
+            'It could be, yes.',
+            'Broadly, yes.',
+          ])),
+          line('Agent', obligations.join(' ')),
+        ]
+      : []
+  }
 
   return [
     line('Lead', variant(leadId, 'pitch-yes', [
@@ -147,44 +196,63 @@ function qualifying(agent: AgentContext, leadId: string): string[] {
       'It could be, yes.',
       'Broadly, yes.',
     ])),
-    line('Agent', variant(leadId, 'qualify', [
+    line('Agent', allowed(leadId, 'qualify', [
       `Before we go further, can I check a couple of things — ${spokenList(asked)}?`,
       `So I point you at the right thing, could you tell me about ${spokenList(asked)}?`,
       `It would help to know about ${spokenList(asked)} — can we run through those?`,
-    ])),
+    ], forbidden)),
     line('Lead', variant(leadId, 'qualify-answer', [
       'Yes, of course. I have a fair idea of what I am after on all of that.',
       'Sure. I know roughly what I want there.',
       'Happy to — I have thought about most of that already.',
     ])),
-    line('Agent', variant(leadId, 'qualify-ack', [
-      'That is helpful, thank you.',
-      'Understood — that gives me what I need.',
-      'Good, that narrows it down.',
-    ])),
+    line('Agent', [
+      variant(leadId, 'qualify-ack', [
+        'That is helpful, thank you.',
+        'Understood — that gives me what I need.',
+        'Good, that narrows it down.',
+      ]),
+      ...obligations,
+    ].join(' ')),
   ]
 }
 
 /** Opening turns, shared by every answered scenario. */
-function opening(agent: AgentContext, lead: LeadContext, leadId: string): string[] {
-  const pitch = offer(agent)
-  const greet = variant(leadId, 'greet', [
-    `Hi ${firstName(lead)}, this is ${agent.name} from ${company(agent)}. ${reason()} — is now an alright time?`,
-    `Hello ${firstName(lead)}, ${agent.name} calling from ${company(agent)}. ${reason()} — have you got a minute?`,
-    `Hi ${firstName(lead)}, it's ${agent.name} at ${company(agent)}. ${reason()} — is this a good moment?`,
-  ])
+function opening(
+  agent: AgentContext,
+  lead: LeadContext,
+  leadId: string,
+  context: CallContext | null
+): string[] {
+  const forbidden = context?.mustNotSay ?? []
+
+  // The campaign's product description outranks the agent's business context;
+  // with no campaign the agent's own context is still what it offers.
+  const pitch = context ? context.pitch : offer(agent)
+
+  // A script's own greeting is the user's words, so it wins over ours. It is
+  // still introduced by the agent, because a script that forgets to say who is
+  // calling would otherwise produce a call that never identifies itself.
+  const greet = context?.scriptOpening
+    ? `${context.scriptOpening}`
+    : allowed(leadId, 'greet', [
+        `Hi ${firstName(lead)}, this is ${agent.name} from ${company(agent)}. ${reason()} — is now an alright time?`,
+        `Hello ${firstName(lead)}, ${agent.name} calling from ${company(agent)}. ${reason()} — have you got a minute?`,
+        `Hi ${firstName(lead)}, it's ${agent.name} at ${company(agent)}. ${reason()} — is this a good moment?`,
+      ], forbidden)
+
   const ack = variant(leadId, 'ack', ['Yes, go ahead.', 'Sure, now is fine.', 'Yes, I have a couple of minutes.'])
-  const ask = variant(leadId, 'ask', [
+  const ask = allowed(leadId, 'ask', [
     'Does that sound like what you were looking for?',
     'Is that the sort of thing you had in mind?',
     'Does that line up with what you are after?',
-  ])
+  ], forbidden)
 
   return [
     line('Agent', greet),
     line('Lead', ack),
     ...(pitch ? [line('Agent', `${pitch} ${ask}`)] : []),
-    ...qualifying(agent, leadId),
+    ...qualifying(agent, leadId, context),
   ]
 }
 
@@ -204,6 +272,12 @@ export interface CallFacts {
   callbackDay?: string
   /** Why the lead declined, as a clause: "has gone with another provider". */
   declineReason?: string
+  /**
+   * What the campaign's objective implies should happen next, when the call
+   * ended without agreeing a slot. Without it a qualification call would be
+   * summarised as though a visit had been booked.
+   */
+  objectiveNextAction?: string
 }
 
 interface ClosingResult {
@@ -211,28 +285,103 @@ interface ClosingResult {
   facts: CallFacts
 }
 
-type Closing = (agent: AgentContext, lead: LeadContext, leadId: string) => ClosingResult
+/**
+ * How an interested call ends when the objective is not to book a slot.
+ *
+ * Each ends on the agent so the turn-taking still alternates, and each carries
+ * the next action its objective implies, so nothing downstream has to guess
+ * what "interested" meant for this campaign.
+ */
+const NON_BOOKING_CLOSE: Record<
+  Exclude<CallObjective, 'BOOK_APPOINTMENT' | 'BOOK_DEMO'>,
+  { agent: string; lead: string; wrapUp: string; nextAction: string }
+> = {
+  QUALIFY: {
+    agent: 'I have what I need for now. Would it help if one of our team called you with the specifics?',
+    lead: 'Yes, that would be useful.',
+    wrapUp: 'I will pass this to the team and they will be in touch.',
+    nextAction: 'Hand this lead to a salesperson with the answers captured on the call.',
+  },
+  COLLECT_REQUIREMENTS: {
+    agent: 'Let me make sure I have your requirements down correctly before I pass this on.',
+    lead: 'Yes, that is all of it.',
+    wrapUp: 'I have noted that down and will send a written summary across.',
+    nextAction: 'Send the written summary and prepare a quote from the requirements captured.',
+  },
+  GENERATE_INTEREST: {
+    agent: 'I will not take more of your time — may I send you the details to look over?',
+    lead: 'Yes, send them across.',
+    wrapUp: 'I will send those over now.',
+    nextAction: 'Send the information pack and check back once they have read it.',
+  },
+  FOLLOW_UP: {
+    agent: 'Good — shall I pick this back up with you once you have had a think?',
+    lead: 'Yes, that works.',
+    wrapUp: 'I will follow up with you shortly.',
+    nextAction: 'Follow up once they have had time to consider it.',
+  },
+}
+
+type Closing = (
+  agent: AgentContext,
+  lead: LeadContext,
+  leadId: string,
+  context: CallContext | null
+) => ClosingResult
 
 const CLOSINGS: Record<Scenario['key'], Closing> = {
-  INTERESTED: (_agent, lead, leadId) => {
+  INTERESTED: (_agent, lead, leadId, context) => {
+    const keen = line('Lead', variant(leadId, 'keen', [
+      "Yes, that's close to what I had in mind. What would the next step be?",
+      'That does sound right. How do we take it forward?',
+      "Yes, I'd like to see it. What happens next?",
+    ]))
+    const thanks = line('Lead', variant(leadId, 'thanks', [
+      'Perfect, thank you.',
+      'Great, thanks.',
+      'That works, thanks.',
+    ]))
+
+    // A campaign that is only qualifying should not book a visit, and one
+    // collecting requirements should not either. Only the slot-booking
+    // objectives produce an `agreedSlot`, so the summary can never claim a
+    // time the call never agreed.
+    const objective = context?.objective ?? 'BOOK_APPOINTMENT'
+    const booking = objective === 'BOOK_APPOINTMENT' || objective === 'BOOK_DEMO'
+
+    if (!booking) {
+      const close = NON_BOOKING_CLOSE[objective]
+      return {
+        facts: { objectiveNextAction: close.nextAction },
+        lines: [
+          keen,
+          line('Agent', close.agent),
+          line('Lead', close.lead),
+          line('Agent', `Thanks ${firstName(lead)}, ${close.wrapUp}`),
+        ],
+      }
+    }
+
     const slot = variant(leadId, 'slot', [
       ['Weekend works. Saturday afternoon if possible.', 'Saturday afternoon'],
       ['Weekday evening is easier for me — Wednesday after six?', 'Wednesday evening'],
       ['Sunday morning would suit me best.', 'Sunday morning'],
     ] as const)
 
+    const what = objective === 'BOOK_DEMO' ? 'a demo' : 'a visit'
+    const send =
+      objective === 'BOOK_DEMO'
+        ? "I'll send the joining link across on WhatsApp."
+        : "I'll send the details across on WhatsApp so you have the address and my number."
+
     return {
       facts: { agreedSlot: slot[1] },
       lines: [
-        line('Lead', variant(leadId, 'keen', [
-          "Yes, that's close to what I had in mind. What would the next step be?",
-          'That does sound right. How do we take it forward?',
-          "Yes, I'd like to see it. What happens next?",
-        ])),
-        line('Agent', 'I can set up a visit this week. Would a weekday evening or the weekend suit you better?'),
+        keen,
+        line('Agent', `I can set up ${what} this week. Would a weekday evening or the weekend suit you better?`),
         line('Lead', slot[0]),
-        line('Agent', `${slot[1]} it is, ${firstName(lead)}. I'll send the details across on WhatsApp so you have the address and my number.`),
-        line('Lead', variant(leadId, 'thanks', ['Perfect, thank you.', 'Great, thanks.', 'That works, thanks.'])),
+        line('Agent', `${slot[1]} it is, ${firstName(lead)}. ${send}`),
+        thanks,
       ],
     }
   },
@@ -287,12 +436,13 @@ export function buildTranscript(
   scenario: Scenario,
   agent: AgentContext,
   lead: LeadContext,
-  leadId: string
+  leadId: string,
+  context: CallContext | null = null
 ): TranscriptResult {
   if (!scenario.answered) return { text: null, facts: {} }
-  const closing = CLOSINGS[scenario.key](agent, lead, leadId)
+  const closing = CLOSINGS[scenario.key](agent, lead, leadId, context)
   return {
-    text: [...opening(agent, lead, leadId), ...closing.lines].join('\n'),
+    text: [...opening(agent, lead, leadId, context), ...closing.lines].join('\n'),
     facts: closing.facts,
   }
 }

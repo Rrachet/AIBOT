@@ -1,5 +1,6 @@
 import type { CallResult, CallStatus, InitiateCallInput, VoiceProvider } from '@/domain/types'
 import { buildDuration, buildTranscript, type AgentContext, type CallFacts, type LeadContext } from '@/server/demo/transcript'
+import type { CallContext } from '@/server/demo/call-context'
 import { scenarioFor, type Scenario } from '@/server/demo/scenarios'
 
 /**
@@ -74,10 +75,11 @@ export class DemoVoiceProvider implements VoiceProvider {
     index: number,
     attempt: number,
     agent: AgentContext,
-    lead: LeadContext
+    lead: LeadContext,
+    context: CallContext | null = null
   ): SimulatedCall {
     const scenario = scenarioFor(index, attempt)
-    const transcript = buildTranscript(scenario, agent, lead, leadId)
+    const transcript = buildTranscript(scenario, agent, lead, leadId, context)
     return {
       providerCallId: demoCallId(leadId, attempt),
       scenario,

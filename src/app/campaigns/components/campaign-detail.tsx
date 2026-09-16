@@ -10,9 +10,20 @@ import { EmptyState } from '@/components/ui/empty-state';
 import type { CampaignMember, Lead } from '@/domain/types';
 import { ApiError } from '@/lib/api/client';
 import { fetchLeads } from '@/lib/leads';
-import { attachLeads, fetchCampaign, startCampaign, stopCampaign, type CampaignDetail } from '@/lib/campaigns';
+import {
+  attachLeads,
+  fetchCampaign,
+  saveAiCallConfig,
+  startCampaign,
+  stopCampaign,
+  type CampaignDetail,
+} from '@/lib/campaigns';
+import { readiness, type AiCallConfig } from '@/domain/ai-config';
 import { CAMPAIGN_STATUS_DISPLAY, LEAD_STATUS_DISPLAY } from '@/lib/status';
 import { AttachLeadsDialog } from './attach-leads-dialog';
+import { AiConfigForm } from './ai-config-form';
+import { ReadinessPanel } from './readiness-panel';
+import { TestCallDialog } from './test-call-dialog';
 
 const MEMBER_COLUMNS = [
   { key: 'lead', header: 'Lead' },
@@ -29,6 +40,11 @@ type LoadState =
 export function CampaignDetailView({ campaignId }: { campaignId: string }) {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
   const [attachOpen, setAttachOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  // The form is edited locally and saved explicitly, so a half-typed script is
+  // never written to the campaign.
+  const [draft, setDraft] = useState<AiCallConfig | null>(null);
+  const [savingConfig, setSavingConfig] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -45,6 +61,7 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
           fetchLeads(signal),
         ]);
         if (requestRef.current !== requestId) return;
+        setDraft(detail.campaign.aiCallConfig);
         setState({ phase: 'ready', detail, leads });
       } catch (error) {
         if (signal?.aborted || requestRef.current !== requestId) return;
@@ -81,6 +98,28 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
     },
     [load]
   );
+
+  const saveConfig = useCallback(async () => {
+    if (!draft) return;
+    setSavingConfig(true);
+    setActionError(null);
+    setNotice(null);
+    try {
+      const saved = await saveAiCallConfig(campaignId, draft);
+      setDraft(saved.aiCallConfig);
+      setState((current) =>
+        current.phase === 'ready'
+          ? { ...current, detail: { ...current.detail, campaign: saved } }
+          : current
+      );
+      setNotice('Configuration saved.');
+    } catch (error) {
+      const apiError = error instanceof ApiError ? error : null;
+      setActionError(apiError?.message ?? 'We could not save this configuration.');
+    } finally {
+      setSavingConfig(false);
+    }
+  }, [campaignId, draft]);
 
   const transition = useCallback(
     async (action: 'start' | 'stop') => {
@@ -143,6 +182,15 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
   const { campaign, members, callCount } = state.detail;
   const display = CAMPAIGN_STATUS_DISPLAY[campaign.status];
   const running = campaign.status === 'RUNNING';
+  const readinessItems = readiness({
+    hasAgent: Boolean(campaign.agentId),
+    // The detail response embeds the agent, so an agent that was paused after
+    // the campaign was built still shows as a blocker.
+    agentActive: state.detail.agentActive,
+    config: draft ?? campaign.aiCallConfig,
+    leadCount: members.length,
+  });
+
   const attachedIds = new Set(members.map((member) => member.leadId));
   const available = state.leads.filter((lead) => !attachedIds.has(lead.id));
 
@@ -161,14 +209,8 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
           >
             <Icon name="plus" size={15} /> Add leads
           </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => void transition(running ? 'stop' : 'start')}
-            disabled={busy}
-          >
-            <Icon name={running ? 'clock' : 'play'} size={15} />
-            {busy ? 'Working…' : running ? 'Pause campaign' : 'Start campaign'}
+          <button type="button" className="secondary-button" onClick={() => setTestOpen(true)}>
+            <Icon name="phone" size={15} /> Test call
           </button>
         </>
       }
@@ -179,6 +221,14 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
         </p>
       ) : null}
       {notice ? <p className="form-notice">{notice}</p> : null}
+
+      <ReadinessPanel
+        items={readinessItems}
+        onTestCall={() => setTestOpen(true)}
+        onStart={() => void transition(running ? 'stop' : 'start')}
+        starting={busy}
+        running={running}
+      />
 
       <Card>
         <CardHeader
@@ -238,6 +288,18 @@ export function CampaignDetailView({ campaignId }: { campaignId: string }) {
           </DataTable>
         )}
       </Card>
+
+      {draft ? (
+        <AiConfigForm
+          value={draft}
+          campaignId={campaignId}
+          saving={savingConfig}
+          onChange={setDraft}
+          onSave={() => void saveConfig()}
+        />
+      ) : null}
+
+      <TestCallDialog open={testOpen} campaign={campaign} onClose={() => setTestOpen(false)} />
 
       <AttachLeadsDialog
         open={attachOpen}

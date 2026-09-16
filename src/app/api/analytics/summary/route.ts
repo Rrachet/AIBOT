@@ -40,6 +40,18 @@ function tally<T>(rows: readonly T[], pick: (row: T) => string | null): Counts {
   return counts
 }
 
+/**
+ * A call made to test a campaign's configuration rather than to reach anyone.
+ *
+ * Excluded from every figure on this page. Someone pressing "Test call" ten
+ * times while tuning a script must not move their answer rate, their
+ * qualification rate or their call count — the point of the test is to check
+ * the wording, not to record outreach that never happened.
+ */
+function isTestCall(row: { metadata: Record<string, unknown> | null }): boolean {
+  return row.metadata?.campaign_test === true
+}
+
 interface CallRow {
   id: string
   status: string
@@ -76,6 +88,8 @@ export async function GET(request: Request) {
       .from('leads')
       .select('id, status', { count: 'exact' })
       .eq('workspace_id', auth.workspaceId)
+      // Not a lead: the row campaign test calls are recorded against.
+      .not('metadata', 'cs', '{"test_call_holder": true}')
       .limit(SAMPLE_LIMIT),
     auth.supabase
       .from('calls')
@@ -110,7 +124,9 @@ export async function GET(request: Request) {
   }
 
   const leadRows = (leads.data ?? []) as { id: string; status: string }[]
-  const callRows = (calls.data ?? []) as unknown as CallRow[]
+  const allCallRows = (calls.data ?? []) as unknown as CallRow[]
+  const callRows = allCallRows.filter((row) => !isTestCall(row))
+  const testCallCount = allCallRows.length - callRows.length
   const followUpRows = (followUps.data ?? []) as { id: string; status: string; channel: string }[]
   const agentRows = (agents.data ?? []) as AgentRow[]
   const campaignRows = (campaigns.data ?? []) as CampaignRow[]
@@ -128,7 +144,9 @@ export async function GET(request: Request) {
   const memberRows = (memberData ?? []) as MemberRow[]
 
   const leadTotal = leads.count ?? leadRows.length
-  const callTotal = calls.count ?? callRows.length
+  // The exact count covers every row including tests, so the tests counted in
+  // the sample come back off it.
+  const callTotal = (calls.count ?? allCallRows.length) - testCallCount
   const followUpTotal = followUps.count ?? followUpRows.length
 
   const leadStatus = tally(leadRows, (row) => row.status)
@@ -219,6 +237,9 @@ export async function GET(request: Request) {
       },
       agentPerformance,
       campaignPerformance,
+      // Reported so the UI can say test calls were left out rather than
+      // leaving someone wondering why the count is lower than the Calls page.
+      testCallsExcluded: testCallCount,
       coverage: {
         sampleLimit: SAMPLE_LIMIT,
         // True when a breakdown was computed from a capped sample rather than

@@ -24,6 +24,9 @@ function firstName(name: string | null): string {
 const SUMMARY: Record<ScenarioKey, (input: AnalyzeCallInput) => CallAnalysis> = {
   INTERESTED: (input) => {
     const slot = input.facts.agreedSlot
+    // A campaign that was only qualifying never agreed a time, so the next
+    // action comes from its objective rather than assuming a visit.
+    const objectiveAction = input.facts.objectiveNextAction
     return {
       outcome: 'QUALIFIED',
       summary: slot
@@ -31,7 +34,7 @@ const SUMMARY: Record<ScenarioKey, (input: AnalyzeCallInput) => CallAnalysis> = 
         : `${firstName(input.lead.name)} is interested and asked about next steps.`,
       nextAction: slot
         ? `Send the address and confirm the ${slot} slot.`
-        : 'Send the address and agree a time for the visit.',
+        : objectiveAction ?? 'Agree a time with them and send the details across.',
     }
   },
   FOLLOW_UP: (input) => {

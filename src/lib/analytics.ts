@@ -42,6 +42,8 @@ export interface AnalyticsSummary {
     simulated: number
   }
   followUps: { total: number; byStatus: StatusCounts }
+  /** Campaign test calls left out of every figure above. */
+  testCallsExcluded: number
   agentPerformance: AgentPerformance[]
   campaignPerformance: CampaignPerformance[]
   coverage: {
@@ -89,6 +91,7 @@ const EMPTY: AnalyticsSummary = {
     simulated: 0,
   },
   followUps: { total: 0, byStatus: {} },
+  testCallsExcluded: 0,
   agentPerformance: [],
   campaignPerformance: [],
   coverage: {
@@ -167,6 +170,7 @@ export async function fetchSummary(signal?: AbortSignal): Promise<AnalyticsSumma
       simulated: num(calls, 'simulated'),
     },
     followUps: { total: num(followUps, 'total'), byStatus: counts(followUps.byStatus) },
+    testCallsExcluded: num(data, 'testCallsExcluded'),
     agentPerformance: (Array.isArray(data.agentPerformance) ? data.agentPerformance : [])
       .map(toAgentPerformance)
       .filter((item): item is AgentPerformance => item !== null),

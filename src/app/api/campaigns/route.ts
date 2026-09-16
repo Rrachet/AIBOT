@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { requireAuth } from '@/lib/api/auth'
+import { aiCallConfigSchema } from '@/domain/ai-config'
 
 const campaignSchema = z.object({
   name: z.string().trim().min(1).max(160),
@@ -7,6 +8,7 @@ const campaignSchema = z.object({
   max_attempts: z.number().int().min(1).max(10).default(1),
   whatsapp_fallback_enabled: z.boolean().default(false),
   whatsapp_fallback_delay_minutes: z.number().int().min(0).default(10),
+  ai_call_config: aiCallConfigSchema.default({}),
 })
 
 export async function GET(request: Request) {

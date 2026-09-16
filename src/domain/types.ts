@@ -1,3 +1,5 @@
+import type { AiCallConfig } from './ai-config';
+
 export type LeadSource = 'MANUAL' | 'CSV' | 'EXCEL' | 'META' | 'WEBSITE' | 'CRM';
 
 export type LeadStatus =
@@ -52,6 +54,8 @@ export interface Campaign {
   maxAttempts: number;
   whatsappFallbackEnabled: boolean;
   whatsappFallbackDelayMinutes: number;
+  /** What this campaign sells and how it should be talked about. */
+  aiCallConfig: AiCallConfig;
   createdAt: string;
 }
 

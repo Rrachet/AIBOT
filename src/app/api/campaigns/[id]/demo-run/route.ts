@@ -5,6 +5,8 @@ import { DemoVoiceProvider, DEMO_PROVIDER } from '@/server/providers/demo-voice'
 import { isDemoVoice } from '@/server/providers/voice'
 import { DemoAIProvider, leadStatusFor } from '@/server/ai/demo-ai'
 import type { AgentContext, LeadContext } from '@/server/demo/transcript'
+import { buildCallContext } from '@/server/demo/call-context'
+import { readAiCallConfig } from '@/domain/ai-config'
 
 /**
  * Runs a batch of simulated calls for a campaign.
@@ -68,7 +70,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const { data: campaign } = await auth.supabase
     .from('campaigns')
-    .select('id, status, max_attempts, whatsapp_fallback_enabled, whatsapp_fallback_delay_minutes, agent_id, agents(id, name, company_name, purpose, instructions, business_context)')
+    .select('id, status, max_attempts, whatsapp_fallback_enabled, whatsapp_fallback_delay_minutes, agent_id, ai_call_config, agents(id, name, company_name, purpose, instructions, business_context)')
     .eq('workspace_id', auth.workspaceId)
     .eq('id', id)
     .maybeSingle()
@@ -137,6 +139,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     })
   }
 
+  // What this campaign was configured to sell and say. Layered over the
+  // agent's own configuration in the order set out in call-context.ts.
+  const callContext = buildCallContext(agent, readAiCallConfig(campaign.ai_call_config))
+
   const voice = new DemoVoiceProvider()
   const now = Date.now()
 
@@ -154,7 +160,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const attempt = (member.attempts as number) + 1
     const lead: LeadContext = { name: leadRow.name, company: leadRow.company }
 
-    const simulated = voice.simulate(leadRow.id, index, attempt, agent, lead)
+    const simulated = voice.simulate(leadRow.id, index, attempt, agent, lead, callContext)
     const analysis = await new DemoAIProvider(simulated.scenario).analyzeCall({
       transcript: simulated.transcript,
       answered: simulated.scenario.answered,

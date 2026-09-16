@@ -2695,3 +2695,186 @@ a.quick-card:hover {
     align-items: stretch;
   }
 }
+
+/* Campaign AI call configuration ------------------------------------------- */
+
+.script-editor {
+  min-height: 240px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.objective-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.objective-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.objective-option:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-soft);
+}
+
+.objective-option.selected {
+  border-color: transparent;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.objective-option strong {
+  font-size: 13.5px;
+}
+
+.objective-option span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.objective-option.selected strong {
+  color: var(--accent-dark);
+}
+
+.objective-option:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Readiness ---------------------------------------------------------------- */
+
+.readiness.is-ready {
+  border-color: rgba(10, 127, 88, 0.3);
+}
+
+.readiness-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.readiness-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.readiness-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 50%;
+  color: var(--muted-2);
+  background: var(--surface-sunken);
+}
+
+.readiness-list li.done .readiness-mark {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.readiness-list li.blocked .readiness-mark {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.readiness-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.readiness-copy strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.readiness-list li.done .readiness-copy strong {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.readiness-copy span {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.readiness-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--surface-soft);
+}
+
+.readiness-status {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.readiness-status strong {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+}
+
+.readiness.is-ready .readiness-status strong {
+  color: var(--green);
+}
+
+.readiness-status span {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.readiness-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.field-error {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--red);
+}
+
+@media (max-width: 640px) {
+  .readiness-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .readiness-actions .secondary-button,
+  .readiness-actions .primary-button {
+    flex: 1;
+  }
+}

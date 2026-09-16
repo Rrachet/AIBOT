@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { requireAuth } from '@/lib/api/auth'
+import { aiCallConfigSchema } from '@/domain/ai-config'
 
 /**
  * Single-campaign routes.
@@ -16,6 +17,10 @@ const updateSchema = z
     max_attempts: z.number().int().min(1).max(10),
     whatsapp_fallback_enabled: z.boolean(),
     whatsapp_fallback_delay_minutes: z.number().int().min(0).max(10080),
+    // Replaced wholesale rather than merged: the form always sends the full
+    // configuration, and a partial merge would make clearing a field
+    // impossible.
+    ai_call_config: aiCallConfigSchema,
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, {
