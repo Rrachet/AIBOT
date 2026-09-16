@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { SectionPage } from '@/components/section-page';
 import { Icon } from '@/components/icons';
 import { Card } from '@/components/ui/card';
@@ -224,7 +225,9 @@ export function AgentsView() {
                     {agent.active ? 'Active' : 'Paused'}
                   </span>
                 </div>
-                <h2 className="agent-name">{agent.name}</h2>
+                <h2 className="agent-name">
+                  <Link href={`/agents/${agent.id}`}>{agent.name}</Link>
+                </h2>
                 {secondary ? <p className="agent-role">{secondary}</p> : null}
 
                 {agent.instructions?.trim() ? (
@@ -236,6 +239,9 @@ export function AgentsView() {
                 )}
 
                 <div className="agent-actions">
+                  <Link className="primary-button" href={`/agents/${agent.id}`}>
+                    <Icon name="phone" size={15} /> Demo call
+                  </Link>
                   <button
                     type="button"
                     className="secondary-button"

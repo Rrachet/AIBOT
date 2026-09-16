@@ -1,5 +1,7 @@
-import type { Agent } from '@/domain/types'
+import type { Agent, CallDetail, FollowUp } from '@/domain/types'
 import { ApiError, asBoolean, asString, isRecord, request } from '@/lib/api/client'
+import { toCallDetail } from '@/lib/calls'
+import { toFollowUp } from '@/lib/follow-ups'
 
 /**
  * Client-side boundary for `/api/agents`.
@@ -131,4 +133,62 @@ export function agentInitial(agent: Agent): string {
 /** Secondary line under the name: company, falling back to purpose. */
 export function agentSecondaryLine(agent: Agent): string | null {
   return agent.companyName?.trim() || agent.purpose?.trim() || null
+}
+
+/** One agent, or 404 when it is not this workspace's. */
+export async function fetchAgent(id: string, signal?: AbortSignal): Promise<Agent> {
+  const data = await request(`/api/agents/${id}`, {
+    method: 'GET',
+    signal,
+    fallback: 'The server did not return this agent.',
+  })
+
+  const agent = toAgent(data)
+  if (!agent) throw new ApiError('This agent could not be read.', { status: 404 })
+  return agent
+}
+
+export interface DemoCallResult {
+  call: CallDetail
+  followUp: FollowUp | null
+  contact: { id: string; name: string | null; phone: string; company: string | null }
+}
+
+/**
+ * Runs one simulated call for this agent. Nothing is dialled — see the route.
+ *
+ * The call comes back as the server stored it, so the result screen renders
+ * the saved record rather than a client-side guess at what was written.
+ */
+export async function makeDemoCall(
+  agentId: string,
+  leadId?: string
+): Promise<DemoCallResult> {
+  const data = await request(`/api/agents/${agentId}/demo-call`, {
+    method: 'POST',
+    body: JSON.stringify(leadId ? { lead_id: leadId } : {}),
+    fallback: 'The demo call could not be completed. Please try again.',
+  })
+
+  if (!isRecord(data)) {
+    throw new ApiError('The call finished but could not be read back.', { status: 200 })
+  }
+
+  const call = toCallDetail(data.call, asString(data.nextAction))
+  if (!call) {
+    throw new ApiError('The call finished but could not be read back.', { status: 200 })
+  }
+
+  const contactRow = isRecord(data.lead) ? data.lead : {}
+
+  return {
+    call,
+    followUp: toFollowUp(data.followUp),
+    contact: {
+      id: asString(contactRow.id) ?? '',
+      name: asString(contactRow.name),
+      phone: asString(contactRow.phone) ?? '',
+      company: asString(contactRow.company),
+    },
+  }
 }

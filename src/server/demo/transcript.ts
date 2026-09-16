@@ -80,6 +80,91 @@ function variant<T>(leadId: string, slot: string, options: readonly T[]): T {
   return options[seedFrom(`${leadId}:${slot}`) % options.length]!
 }
 
+/**
+ * The things the agent was told to ask about, as the user wrote them.
+ *
+ * Instructions arrive as an imperative — "Ask about location, budget and
+ * configuration" — so the leading verb is dropped and the list is kept. Only
+ * the user's own words are used: nothing is inferred about what "budget" might
+ * mean, and no figure is invented to answer with, because a number that looks
+ * like a real answer is the one thing a demo must not put into a lead's mouth.
+ *
+ * An instruction that is not an ask at all ("Be polite", "Keep it short")
+ * yields nothing. Splicing that into a question produces "can I check a couple
+ * of things — be polite?", which is worse than not asking.
+ */
+const ASK_VERB =
+  /^(?:please\s+)?(?:ask|find out|check|confirm|enquire about|inquire about|qualify(?:\s+\w+)?\s+(?:on|about)|establish|determine)\b[\s:]*(?:them\s+)?(?:about|for|on|if|whether)?\s*/i
+
+function topics(agent: AgentContext): string[] {
+  const text = agent.instructions?.trim()
+  if (!text) return []
+
+  const firstSentence = text.split(/(?<=[.!?])\s/)[0] ?? text
+  if (!ASK_VERB.test(firstSentence)) return []
+
+  return firstSentence
+    .replace(ASK_VERB, '')
+    .split(/,|\band\b|\bthen\b|;/i)
+    .map((part) =>
+      part
+        .replace(/[.!?]+$/, '')
+        // "their fleet size" reads as third person once the agent says it out
+        // loud; the agent is talking to the lead, not about them.
+        .replace(/^(?:the|a|an|their|his|her|its|your|our)\s+/i, '')
+        .trim()
+        .toLowerCase()
+    )
+    .filter((part) => part.length > 2 && part.length <= 60)
+    .slice(0, 3)
+}
+
+/** Reads a list the way a person would say it: "a, b and c". */
+function spokenList(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+/**
+ * The turns where the agent does what it was told to do.
+ *
+ * Without this an agent's instructions never reach the conversation, so two
+ * agents configured to ask completely different things hold an identical call
+ * — which is the first thing anyone evaluating the product would try.
+ *
+ * Starts on the lead answering the pitch and ends on the agent, because the
+ * scenario closings all open with a lead line. Getting that wrong stacks two
+ * speakers' turns on top of each other and the transcript stops reading as a
+ * conversation.
+ */
+function qualifying(agent: AgentContext, leadId: string): string[] {
+  const asked = topics(agent)
+  if (asked.length === 0) return []
+
+  return [
+    line('Lead', variant(leadId, 'pitch-yes', [
+      'Yes, that is the sort of thing.',
+      'It could be, yes.',
+      'Broadly, yes.',
+    ])),
+    line('Agent', variant(leadId, 'qualify', [
+      `Before we go further, can I check a couple of things — ${spokenList(asked)}?`,
+      `So I point you at the right thing, could you tell me about ${spokenList(asked)}?`,
+      `It would help to know about ${spokenList(asked)} — can we run through those?`,
+    ])),
+    line('Lead', variant(leadId, 'qualify-answer', [
+      'Yes, of course. I have a fair idea of what I am after on all of that.',
+      'Sure. I know roughly what I want there.',
+      'Happy to — I have thought about most of that already.',
+    ])),
+    line('Agent', variant(leadId, 'qualify-ack', [
+      'That is helpful, thank you.',
+      'Understood — that gives me what I need.',
+      'Good, that narrows it down.',
+    ])),
+  ]
+}
+
 /** Opening turns, shared by every answered scenario. */
 function opening(agent: AgentContext, lead: LeadContext, leadId: string): string[] {
   const pitch = offer(agent)
@@ -99,6 +184,7 @@ function opening(agent: AgentContext, lead: LeadContext, leadId: string): string
     line('Agent', greet),
     line('Lead', ack),
     ...(pitch ? [line('Agent', `${pitch} ${ask}`)] : []),
+    ...qualifying(agent, leadId),
   ]
 }
 

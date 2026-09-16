@@ -84,6 +84,26 @@ export async function fetchCalls(
   return rows.map(toCall).filter((item): item is Call => item !== null)
 }
 
+/**
+ * A call row plus the fields only a detail view shows, with no follow-ups
+ * attached. Shared so the agent demo call and the call detail page read a
+ * stored call exactly the same way.
+ */
+export function toCallDetail(value: unknown, nextAction?: string | null): CallDetail | null {
+  const call = toCall(value)
+  if (!call || !isRecord(value)) return null
+
+  return {
+    ...call,
+    // Stored when the call was recorded, and rendered as stored. The UI never
+    // regenerates either: the transcript is a record of what was said.
+    transcript: asString(value.transcript),
+    summary: asString(value.summary),
+    nextAction: nextAction ?? asString(metadata(value).next_action),
+    followUps: [],
+  }
+}
+
 export async function fetchCall(id: string, signal?: AbortSignal): Promise<CallDetail> {
   const data = await request(`/api/calls/${id}`, {
     method: 'GET',
@@ -91,21 +111,13 @@ export async function fetchCall(id: string, signal?: AbortSignal): Promise<CallD
     fallback: 'The server did not return this call.',
   })
 
-  const raw = isRecord(data) ? data.call : null
-  const call = toCall(raw)
-  if (!call || !isRecord(raw)) {
-    throw new ApiError('This call could not be read.', { status: 404 })
-  }
+  const call = toCallDetail(isRecord(data) ? data.call : null)
+  if (!call) throw new ApiError('This call could not be read.', { status: 404 })
 
   const followUpRows = isRecord(data) && Array.isArray(data.followUps) ? data.followUps : []
 
   return {
     ...call,
-    // Stored when the call was recorded, and rendered as stored. The UI never
-    // regenerates either: the transcript is a record of what was said.
-    transcript: asString(raw.transcript),
-    summary: asString(raw.summary),
-    nextAction: asString(metadata(raw).next_action),
     followUps: followUpRows
       .map(toFollowUp)
       .filter((item): item is FollowUp => item !== null),

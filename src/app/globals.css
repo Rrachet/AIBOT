@@ -2301,46 +2301,30 @@ a.quick-card:hover {
   }
 }
 
+/*
+ * Narrow desktop.
+ *
+ * The sidebar used to collapse to a 72px icon-only rail here, which left
+ * someone guessing at what each glyph meant on exactly the screen sizes where
+ * a laptop demo happens. It stays a labelled sidebar and only loses width;
+ * the help card goes, because that is genuinely optional, and the nav is not.
+ */
 @media (max-width: 960px) {
   :root {
-    --sidebar-w: 72px;
+    --sidebar-w: 212px;
   }
 
   .sidebar {
     padding: 18px 10px;
-    align-items: stretch;
   }
 
-  .brand {
-    padding: 0 8px 22px;
-    justify-content: center;
-  }
-
-  .brand-name,
-  .workspace-copy,
-  .nav-label,
   .sidebar-help {
     display: none;
   }
 
-  .nav a span:not(.nav-icon),
-  .sidebar-signout-button span:not(.nav-icon) {
-    display: none;
-  }
-
-  .sidebar-signout-button {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .workspace {
-    justify-content: center;
-    padding: 8px;
-  }
-
   .nav a {
-    justify-content: center;
-    padding: 0;
+    gap: 10px;
+    padding: 0 9px;
   }
 }
 
@@ -2460,4 +2444,254 @@ a.quick-card:hover {
   margin-top: 7px;
   font-size: 12px;
   color: var(--muted);
+}
+
+/* Agent demo call ---------------------------------------------------------- */
+
+.demo-call-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-call-dialog .lead-dialog-head h2 {
+  margin-top: 8px;
+}
+
+.demo-call-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 18px;
+}
+
+.demo-call-intro {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.demo-call-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.demo-call-cta p {
+  margin: 0;
+  flex: 1 1 320px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* Who is on the call. */
+.call-parties {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.call-party {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.call-party strong {
+  font-size: 14px;
+}
+
+.call-party > span:not(.call-party-label):not(.badge) {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.call-party .badge {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.call-party .field {
+  margin: 2px 0;
+}
+
+.call-party-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.call-party-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--muted-2);
+  flex: none;
+}
+
+.call-parties.compact .call-party {
+  padding: 11px 13px;
+}
+
+/* The in-progress state. */
+.call-running {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 30px 16px 26px;
+  text-align: center;
+}
+
+.call-running strong {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.call-running-meta {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.call-pulse {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  margin-bottom: 6px;
+  animation: call-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes call-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-ring);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(99, 91, 255, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .call-pulse {
+    animation: none;
+  }
+}
+
+.call-stages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.call-stages li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted-2);
+  background: var(--surface);
+}
+
+.call-stages li.active {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.call-stages li.done {
+  color: var(--green);
+  background: var(--green-soft);
+  border-color: transparent;
+}
+
+/* Result sections inside the dialog. */
+.call-section {
+  margin-top: 20px;
+}
+
+.call-section-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.call-section-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.transcript.in-dialog {
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.demo-call-dialog .detail-grid {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.demo-call-dialog .detail-cell:last-child {
+  border-bottom: 0;
+}
+
+.demo-call-dialog .detail-grid .detail-cell:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+/* Long-form agent fields. */
+.prose-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .call-parties {
+    flex-direction: column;
+  }
+
+  .call-party-arrow {
+    transform: rotate(90deg);
+  }
+
+  .demo-call-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
