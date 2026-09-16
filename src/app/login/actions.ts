@@ -131,7 +131,28 @@ export async function signup(formData: FormData) {
     },
   })
 
-  if (error) redirect('/login?error=signup_failed')
+  if (error) {
+    // Supabase refuses a signup in several distinct ways and a single "we could
+    // not create your account" hides the one thing that says what to change.
+    // The reason is logged for the operator and mapped to a message that names
+    // the fix; the address and password are never logged.
+    const reason = error.message ?? ''
+    console.error(`signup rejected by Supabase (status ${error.status ?? 'unknown'}): ${reason}`)
+
+    if (error.status === 429 || /rate limit/i.test(reason)) {
+      redirect('/login?error=signup_rate_limited')
+    }
+    if (/sending confirmation|error sending|smtp|email address .* invalid/i.test(reason)) {
+      redirect('/login?error=signup_email_failed')
+    }
+    if (/signups? (not allowed|are disabled|disabled)/i.test(reason)) {
+      redirect('/login?error=signup_disabled')
+    }
+    if (/password/i.test(reason)) {
+      redirect('/login?error=password_rejected')
+    }
+    redirect('/login?error=signup_failed')
+  }
 
   // A session here means the project has email confirmation switched off, so
   // the account is already usable and there is no link to click. This is

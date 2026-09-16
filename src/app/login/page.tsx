@@ -10,6 +10,12 @@ const messages: Record<string, string> = {
   password_mismatch: 'Those passwords do not match.',
   email_taken: 'That email is already registered. Sign in instead, or use another address.',
   signup_failed: 'We could not create your account. Try again in a moment.',
+  signup_email_failed:
+    'Your account could not be created because the confirmation email could not be sent. Check the email provider settings for this project.',
+  signup_rate_limited:
+    'Too many signup emails have been sent recently. Wait a few minutes and try again.',
+  signup_disabled: 'New signups are turned off for this project.',
+  password_rejected: 'That password was refused. Choose a longer or less common one.',
   email_not_confirmed:
     'Confirm your email first. Click the link in the message we sent you, then sign in.',
   check_email:
