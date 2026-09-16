@@ -1,93 +1,33 @@
-import { login, signup } from './actions'
+import Link from 'next/link'
+import { login } from './actions'
 import { safeNextPath } from '@/lib/auth/redirect'
 import { missingSupabaseEnv, visibleSupabaseEnvNames } from '@/lib/supabase/env'
 
 const messages: Record<string, string> = {
   invalid_credentials: 'The email or password is incorrect.',
   invalid_email: 'Enter a valid email address.',
-  invalid_signup: 'Fill in every field to create your account.',
-  password_too_short: 'Use a password of at least 8 characters (72 maximum).',
-  password_mismatch: 'Those passwords do not match.',
-  email_taken: 'That email is already registered. Sign in instead, or use another address.',
-  signup_failed: 'We could not create your account. Try again in a moment.',
-  signup_email_failed:
-    'Your account could not be created because the confirmation email could not be sent. Check the email provider settings for this project.',
-  signup_rate_limited:
-    'Too many signup emails have been sent recently. Wait a few minutes and try again.',
+  email_taken: 'That email is already registered. Sign in instead.',
+  password_too_short: 'Use a password of at least 8 characters.',
+  email_not_confirmed: 'Confirm your email first. Click the link in the message we sent you.',
+  signup_email_failed: 'The confirmation email could not be sent. Check the email provider settings.',
+  signup_rate_limited: 'Too many signup emails have been sent recently. Wait a few minutes.',
   signup_disabled: 'New signups are turned off for this project.',
   password_rejected: 'That password was refused. Choose a longer or less common one.',
-  email_not_confirmed:
-    'Confirm your email first. Click the link in the message we sent you, then sign in.',
-  check_email:
-    'Account created. Check your email and click the confirmation link to activate your account.',
-  confirmation_failed: 'That confirmation link is invalid or has expired. Sign up again to get a new one.',
-  confirmation_exchange_failed:
-    'That confirmation link could not be completed. Open it in the browser you signed up in, or sign up again to get a new link.',
-  configuration_error:
-    'This AIBOT server is not configured to sign you in yet. Set the Supabase environment variables and restart it.',
-  session_not_established:
-    'Your credentials were accepted but the session could not be stored. Check that cookies are enabled and try again.',
+  signup_failed: 'We could not create your account. Try again in a moment.',
+  configuration_error: 'This AIBOT server is not configured to sign you in yet.',
+  session_not_established: 'Your credentials were accepted but the session could not be stored.',
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const error = typeof params.error === 'string' ? messages[params.error] : undefined
-
-  // Which of the two cases this is, said plainly. A deployment can be missing
-  // its configuration, or be serving a build made before the configuration
-  // existed — the remedies differ and the generic message fits both. Names
-  // only; no value is ever rendered.
-  const missing = params.error === 'configuration_error' ? missingSupabaseEnv() : null
-  const configDetail =
-    missing === null
-      ? undefined
-      : missing.length > 0
-        ? `Not set on this server: ${missing.join(' and ')}. Supabase names visible here: ${
-            visibleSupabaseEnvNames().join(', ') || 'none'
-          }.`
-        : 'This page can read the configuration, so the request was refused by an older build. Redeploy without the build cache.'
-  const message = typeof params.message === 'string' ? messages[params.message] : undefined
+  const message = typeof params.message === 'string' ? params.message : undefined
   const next = safeNextPath(params.next)
+  const missing = params.error === 'configuration_error' ? missingSupabaseEnv() : []
+  const detail = missing.length > 0 ? ` Missing: ${missing.join(' and ')}. Supabase names visible here: ${visibleSupabaseEnvNames().join(', ') || 'none'}.` : ''
 
-  return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <div className="auth-brand">AIBOT</div>
-        <div className="auth-heading">
-          <h1>Welcome back</h1>
-          <p>Sign in to manage your AI lead engagement workspace.</p>
-        </div>
-
-        {error ? (
-          <div className="auth-alert auth-alert-error">
-            {error}
-            {configDetail ? <span className="auth-alert-detail">{configDetail}</span> : null}
-          </div>
-        ) : null}
-        {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
-
-        <form className="auth-form" action={login}>
-          <input type="hidden" name="next" value={next} />
-          <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
-          <label>Password<input name="password" type="password" placeholder="••••••••" autoComplete="current-password" required /></label>
-          <button type="submit" className="auth-primary">Sign in</button>
-        </form>
-
-        <details className="auth-signup">
-          <summary>New to AIBOT? Create an account</summary>
-          <form className="auth-form" action={signup}>
-            <label>Your name<input name="fullName" type="text" placeholder="Your name" autoComplete="name" required /></label>
-            <label>Workspace name<input name="workspaceName" type="text" placeholder="Your company" required /></label>
-            <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
-            <label>Password<input name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
-            <label>Confirm password<input name="confirm" type="password" placeholder="Repeat your password" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
-            <button type="submit" className="auth-secondary">Create account</button>
-          </form>
-          <p className="auth-footnote">We email a confirmation link. Click it to activate your account.</p>
-        </details>
-
-        <p className="auth-footnote">By continuing, you agree to use AIBOT responsibly and keep your workspace credentials secure.</p>
-      </div>
-    </main>
-  )
+  return <main className="auth-marketing">
+    <section className="auth-pitch"><Link className="auth-pitch-logo" href="/">AIBOT.</Link><div><h1>Turn leads into <span>conversations.</span></h1><p>Your AI lead conversion workspace — calling, qualification and follow-up in one workflow.</p><div className="auth-pitch-list"><span className="auth-pill">AI calling</span><span className="auth-pill">Lead qualification</span><span className="auth-pill">WhatsApp follow-up</span><span className="auth-pill">Real-time analytics</span></div></div></section>
+    <section className="auth-form-side"><div className="auth-form-card"><Link className="auth-back" href="/">← Back to AIBOT</Link><h2>Welcome back</h2><p>Sign in to your AIBOT workspace.</p>{error && <div className="auth-alert-mk">{error}{detail}</div>}{message && <div className="auth-alert-mk">{message}</div>}<form action={login}><input type="hidden" name="next" value={next}/><label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required/></label><label>Password<input name="password" type="password" placeholder="Your password" autoComplete="current-password" required/></label><button type="submit">Sign in →</button></form><p className="auth-switch">New to AIBOT? <Link href="/signup">Create an account</Link></p></div></section>
+  </main>
 }
