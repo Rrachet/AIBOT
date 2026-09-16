@@ -1,17 +1,15 @@
 import { login, signup } from './actions'
-import { GoogleSignInButton } from './google-button'
 import { safeNextPath } from '@/lib/auth/redirect'
 
 const messages: Record<string, string> = {
   invalid_credentials: 'The email or password is incorrect.',
-  invalid_signup: 'Use a valid email and a password with at least 8 characters.',
-  signup_failed: 'We could not create your account. The email may already be registered.',
-  check_email: 'Account created. Check your email to confirm your account before signing in.',
-  confirmation_failed: 'That confirmation link is invalid or has expired. Request a new signup email.',
-  oauth_failed: 'Google sign-in did not complete. Try again, or sign in with your email and password.',
-  oauth_exchange_failed:
-    'That Google sign-in link has expired or was already used. Start the sign-in again.',
-  oauth_unavailable: 'Google sign-in is unavailable right now. Sign in with your email and password.',
+  invalid_email: 'Enter a valid email address.',
+  invalid_signup: 'Fill in every field to create your account.',
+  password_too_short: 'Use a password of at least 8 characters (72 maximum).',
+  password_mismatch: 'Those passwords do not match.',
+  email_taken: 'That email is already registered. Sign in instead, or use another address.',
+  signup_failed: 'We could not create your account. Try again in a moment.',
+  confirmation_failed: 'That confirmation link is invalid or has expired. Request a new code.',
   configuration_error:
     'This AIBOT server is not configured to sign you in yet. Set the Supabase environment variables and restart it.',
   session_not_established:
@@ -36,12 +34,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
         {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
 
-        <GoogleSignInButton next={next} />
-
-        <div className="auth-divider">
-          <span>or</span>
-        </div>
-
         <form className="auth-form" action={login}>
           <input type="hidden" name="next" value={next} />
           <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
@@ -52,12 +44,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <details className="auth-signup">
           <summary>New to AIBOT? Create an account</summary>
           <form className="auth-form" action={signup}>
-            <label>Your name<input name="fullName" type="text" placeholder="Your name" autoComplete="name" /></label>
-            <label>Workspace name<input name="workspaceName" type="text" placeholder="Your company" /></label>
+            <label>Your name<input name="fullName" type="text" placeholder="Your name" autoComplete="name" required /></label>
+            <label>Workspace name<input name="workspaceName" type="text" placeholder="Your company" required /></label>
             <label>Email<input name="email" type="email" placeholder="you@company.com" autoComplete="email" required /></label>
-            <label>Password<input name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" minLength={8} required /></label>
+            <label>Password<input name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
+            <label>Confirm password<input name="confirm" type="password" placeholder="Repeat your password" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
             <button type="submit" className="auth-secondary">Create account</button>
           </form>
+          <p className="auth-footnote">We email a 6-digit code to confirm your address before your account is active.</p>
         </details>
 
         <p className="auth-footnote">By continuing, you agree to use AIBOT responsibly and keep your workspace credentials secure.</p>

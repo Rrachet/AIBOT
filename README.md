@@ -24,67 +24,85 @@ Future lead sources (Meta Lead Ads, website forms, CRMs) will enter the same nor
 AIBOT uses Supabase Auth through `@supabase/ssr`. The session lives in cookies
 and is refreshed by `src/proxy.ts`; no token is ever written to `localStorage`.
 
-Two ways in, both landing on the same Supabase user:
+One way in, one kind of account:
 
-- **Email and password** — signup, sign-in and email confirmation.
-- **Continue with Google** — OAuth via Supabase, using the PKCE flow.
+- **Sign up** — name, workspace name, email, password, confirm password, then a
+  6-digit code emailed to that address.
+- **Sign in** — email and password only. A confirmed account never sees a code
+  again.
 
-### Google sign-in: what to configure
+There is no social sign-in. Supabase owns the codes end to end: AIBOT never
+generates, stores, hashes or compares one.
 
-Nothing about Google goes in this repository. The client ID and secret belong
-in the Supabase Dashboard, which is why `.env.example` gains no new variable —
-the browser derives its redirect from `window.location.origin`.
+### Registration flow
 
-**1. Google Cloud Console** — APIs & Services → Credentials → *OAuth client ID*
-(Web application):
+1. `/login` posts the signup form to `signUpWithPassword` in
+   `src/app/login/actions.ts`, which calls `supabase.auth.signUp()` with
+   `full_name` and `workspace_name` in `options.data`.
+2. With email confirmation on, `signUp()` returns **no session**. The action
+   redirects to `/auth/verify?email=...&sent=1`.
+3. `/auth/verify` collects the code and calls
+   `supabase.auth.verifyOtp({ email, token, type: 'signup' })`. That call is what
+   establishes the session, so an unverified address can never reach the app.
+4. On success the user lands on `/` (or a validated `next` path — see
+   `safeNextPath` in `src/lib/auth/redirect.ts`).
 
-| Field | Value |
-| --- | --- |
-| Authorised JavaScript origins | `http://localhost:3000`, plus your production origin |
-| Authorised redirect URI | `https://<project-ref>.supabase.co/auth/v1/callback` |
+Resending is `supabase.auth.resend({ type: 'signup', email })`, behind a 60
+second countdown in the UI. Supabase rate-limits it server-side as well, and a
+429 is reported as "Please wait a moment before requesting another code" rather
+than swallowed.
 
-The redirect URI points at **Supabase**, not at AIBOT. Supabase completes the
-exchange with Google and then redirects to AIBOT. Copy the generated client ID
-and client secret.
+Two edges worth knowing, because both are silent in the raw API:
 
-**2. Supabase Dashboard → Authentication → Providers → Google**
+- **Already registered.** With confirmations on, Supabase does not reveal that an
+  address exists — it returns a user with an empty `identities` array instead of
+  an error. The signup action treats that shape as "email already registered".
+- **Unconfirmed sign-in.** A password sign-in for an unconfirmed account fails
+  with an "Email not confirmed" error, so the login action routes it back to
+  `/auth/verify` instead of claiming the credentials are wrong.
 
-- Enable the provider.
-- Paste the client ID and client secret from step 1.
-- Leave *Skip nonce check* off.
+### What to configure in Supabase
 
-**3. Supabase Dashboard → Authentication → URL Configuration**
+Nothing about email delivery belongs in this repository. No SMTP credential and
+no provider name is read by application code, and `.env.example` gains no
+variable for it.
+
+**1. Authentication → Providers → Email**
+
+- Enable *Email*.
+- Enable *Confirm email*. With it off, `signUp()` returns a session immediately
+  and the verification step is skipped entirely.
+
+**2. Authentication → Email Templates → Confirm signup**
+
+The default template sends a link, not a code. Make sure the body contains the
+token variable:
+
+```text
+Your AIBOT verification code is {{ .Token }}
+```
+
+Keeping `{{ .ConfirmationURL }}` alongside it is fine — `src/app/auth/confirm/route.ts`
+still handles the link form — but the code is what `/auth/verify` expects.
+
+**3. Authentication → URL Configuration**
 
 | Field | Value |
 | --- | --- |
 | Site URL | your production origin, e.g. `https://aibot.example.com` |
-| Redirect URLs | `http://localhost:3000/auth/callback`, `https://<your-domain>/auth/callback`, and for Vercel previews `https://*-<your-team>.vercel.app/auth/callback` |
+| Redirect URLs | `http://localhost:3000/**`, `https://<your-domain>/**` |
 
-A redirect URL that is not listed here fails the exchange and the user is
-returned to `/login` with an error. Add every origin the app is served from.
+**4. Project Settings → Authentication → SMTP**
 
-### One account per email
-
-Supabase links a Google sign-in to an existing user when the email matches and
-is confirmed (Dashboard → Authentication → Providers → *Allow manual linking* /
-automatic linking behaviour). AIBOT does not merge accounts itself: there is no
-code that looks a user up by email and joins records, because doing so on an
-unverified email is how account-takeover bugs happen.
-
-### First Google sign-in
-
-A Google account arrives with no password, so `/auth/set-password` offers to
-create one — the account then works with either method. An account that already
-has a password never sees that page. The password is passed straight to
-`supabase.auth.updateUser()` and is never stored or logged by AIBOT.
+The built-in sender is rate-limited and meant for development. Point Supabase at
+a real SMTP provider before anyone outside the team signs up.
 
 ### Workspaces
 
 Workspace creation belongs to the `on_auth_user_created_workspace` trigger,
-which fires for every new `auth.users` row regardless of how the user signed
-up. Application code never creates a workspace, so a Google signup gets exactly
-one and a returning Google user gets none.
-
+which fires once per new `auth.users` row and reads `workspace_name` from the
+signup metadata. Application code never creates a workspace, so a signup gets
+exactly one however many times the code is resent or retyped.
 
 ## UI layer (Phase 1)
 
@@ -137,9 +155,10 @@ the file. A clean `npm run typecheck` afterwards proves no view still depends on
 
 ### Not yet wired
 
-These render as real UI but perform no action until their phase lands: page-level
-buttons (Add lead, Import CSV or Excel, Create agent, New campaign, Export report),
-topbar search and notifications, and the workspace switcher. Controls that will
+Leads is connected: Add lead and Import CSV or Excel both go through
+`/api/leads`. The rest render as real UI but perform no action until their phase
+lands: page-level buttons (Create agent, New campaign, Export report), topbar
+search and notifications, and the workspace switcher. Controls that will
 stay unavailable for a while are explicitly `disabled` with a reason beside them
 (Connect WhatsApp, Save changes) rather than silently doing nothing.
 
