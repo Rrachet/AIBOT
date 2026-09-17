@@ -12,6 +12,10 @@ import { ApiError } from '@/lib/api/client';
 import { runTestCall, type TestCallResult } from '@/lib/campaigns';
 import { CALL_OUTCOME_DISPLAY, formatDuration } from '@/lib/status';
 import type { CallOutcome } from '@/domain/types';
+import { useCapabilities } from '@/components/workspace-context';
+import { readTranscript } from '@/lib/speech/speech-script';
+import { SPEECH_REGISTER_LABEL, SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types';
+import { VoicePreview } from './voice-preview';
 
 /**
  * A test call against the campaign's configuration.
@@ -20,6 +24,13 @@ import type { CallOutcome } from '@/domain/types';
  * only meaningful if you can see who it was aimed at — but nothing is dialled
  * and the label says so at every stage. Nobody is contacted, no lead's status
  * changes, and the result is kept out of this campaign's figures.
+ *
+ * A workspace with the live voice preview capability gets two extra things: a
+ * language to hold the call in, and the option to hear the result read aloud by
+ * the browser. Neither changes what a test call is or what it records — the
+ * language reaches the one transcript builder, and the preview reads back the
+ * transcript that was stored. Every other workspace sees exactly the dialog it
+ * saw before, and the server refuses both if asked anyway.
  */
 
 type Stage = 'setup' | 'running' | 'done';
@@ -42,6 +53,9 @@ export function TestCallDialog({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [result, setResult] = useState<TestCallResult | null>(null);
+  const [language, setLanguage] = useState<SpeechRegister>('ENGLISH');
+  const [activeTurn, setActiveTurn] = useState<string | null>(null);
+  const { liveVoicePreview } = useCapabilities();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -59,6 +73,7 @@ export function TestCallDialog({
       setResult(null);
       setError(null);
       setFieldErrors({});
+      setActiveTurn(null);
       node.showModal();
     } else if (!open && node.open) {
       node.close();
@@ -82,7 +97,14 @@ export function TestCallDialog({
     const minimum = STAGE_MS.connecting + STAGE_MS.talking + STAGE_MS.thinking;
 
     try {
-      const outcome = await runTestCall(campaign.id, { name: name.trim(), phone: phone.trim() });
+      const outcome = await runTestCall(campaign.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        // Only ever sent by a workspace that has the capability. The server
+        // checks it again regardless, because a control the browser can see is
+        // not a permission.
+        ...(liveVoicePreview && language !== 'ENGLISH' ? { language } : {}),
+      });
       const elapsed = Date.now() - startedAt;
       timers.current.push(
         setTimeout(() => {
@@ -101,7 +123,7 @@ export function TestCallDialog({
       );
       setStage('setup');
     }
-  }, [campaign.id, name, phone, clearTimers]);
+  }, [campaign.id, name, phone, language, liveVoicePreview, clearTimers]);
 
   const close = useCallback(() => {
     clearTimers();
@@ -177,6 +199,33 @@ export function TestCallDialog({
                 {fieldErrors.phone ? <span className="field-error">{fieldErrors.phone}</span> : null}
               </div>
             </div>
+
+            {liveVoicePreview ? (
+              <fieldset className="voice-language">
+                <legend>Hold the call in</legend>
+                <div className="voice-language-options">
+                  {SPEECH_REGISTERS.map((option) => (
+                    <label
+                      key={option}
+                      className={`voice-language-option${language === option ? ' is-selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="test-call-language"
+                        value={option}
+                        checked={language === option}
+                        onChange={() => setLanguage(option)}
+                      />
+                      <span>{SPEECH_REGISTER_LABEL[option]}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="voice-language-hint">
+                  The conversation is written in the language you pick, so the transcript and the
+                  voice always say the same thing.
+                </p>
+              </fieldset>
+            ) : null}
           </>
         ) : null}
 
@@ -203,7 +252,15 @@ export function TestCallDialog({
           </div>
         ) : null}
 
-        {stage === 'done' && result ? <TestResult result={result} campaign={campaign} /> : null}
+        {stage === 'done' && result ? (
+          <TestResult
+            result={result}
+            campaign={campaign}
+            voicePreview={liveVoicePreview}
+            activeTurn={activeTurn}
+            onActiveTurn={setActiveTurn}
+          />
+        ) : null}
       </div>
 
       <div className="lead-dialog-actions">
@@ -247,7 +304,21 @@ export function TestCallDialog({
   );
 }
 
-function TestResult({ result, campaign }: { result: TestCallResult; campaign: Campaign }) {
+function TestResult({
+  result,
+  campaign,
+  voicePreview,
+  activeTurn,
+  onActiveTurn,
+}: {
+  result: TestCallResult;
+  campaign: Campaign;
+  /** Whether this workspace may hear the call read aloud. */
+  voicePreview: boolean;
+  /** Id of the line being spoken, so the transcript can show which one. */
+  activeTurn: string | null;
+  onActiveTurn: (id: string | null) => void;
+}) {
   return (
     <>
       <p className="demo-call-intro">
@@ -303,28 +374,41 @@ function TestResult({ result, campaign }: { result: TestCallResult; campaign: Ca
         </section>
       ) : null}
 
+      {voicePreview && result.transcript ? (
+        <VoicePreview
+          transcript={result.transcript}
+          register={result.language}
+          onActiveTurn={onActiveTurn}
+        />
+      ) : null}
+
       <section className="call-section">
         <h3 className="call-section-title">Transcript</h3>
         {result.transcript ? (
           <div className="transcript in-dialog">
-            {result.transcript
-              .split('\n')
-              .filter((line) => line.trim().length > 0)
-              .map((line, index) => {
-                const separator = line.indexOf(': ');
-                const speaker = separator > 0 ? line.slice(0, separator) : null;
-                const body = separator > 0 ? line.slice(separator + 2) : line;
-                const isAgent = speaker?.toLowerCase() === 'agent';
-                return (
-                  <div
-                    key={index}
-                    className={`transcript-line ${speaker ? (isAgent ? 'is-agent' : 'is-lead') : 'is-plain'}`}
-                  >
-                    {speaker ? <span className="transcript-speaker">{speaker}</span> : null}
-                    <span className="transcript-text">{body}</span>
-                  </div>
-                );
-              })}
+            {/* Read with the same parser the speech plan is built from, so the
+                line highlighted here is the line being spoken rather than one
+                that happens to sit at the same index. */}
+            {readTranscript(result.transcript).map((line, index) => {
+              const id = `line-${index}`;
+              const isAgent = line.speaker === 'AGENT';
+              return (
+                <div
+                  key={id}
+                  className={`transcript-line ${isAgent ? 'is-agent' : 'is-lead'}${
+                    activeTurn === id ? ' is-speaking' : ''
+                  }`}
+                >
+                  <span className="transcript-speaker">{isAgent ? 'Agent' : 'Lead'}</span>
+                  <span className="transcript-text">{line.text}</span>
+                  {activeTurn === id && isAgent ? (
+                    <span className="transcript-speaking" aria-label="Speaking now">
+                      <span className="voice-dot" aria-hidden="true" />
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <EmptyState

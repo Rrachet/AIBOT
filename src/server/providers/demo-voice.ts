@@ -1,4 +1,5 @@
 import type { CallResult, CallStatus, InitiateCallInput, VoiceProvider } from '@/domain/types'
+import type { SpeechRegister } from '@/lib/speech/speech-types'
 import { buildDuration, buildTranscript, type AgentContext, type CallFacts, type LeadContext } from '@/server/demo/transcript'
 import type { CallContext } from '@/server/demo/call-context'
 import { scenarioFor, type Scenario } from '@/server/demo/scenarios'
@@ -69,17 +70,25 @@ export class DemoVoiceProvider implements VoiceProvider {
     return null
   }
 
-  /** Full simulated result, used by the campaign demo runner. */
+  /**
+   * Full simulated result, used by the campaign demo runner.
+   *
+   * `register` is the language the conversation is held in. It defaults to
+   * English, so every existing caller produces exactly the call it produced
+   * before, and it is passed to the one transcript builder rather than applied
+   * afterwards — what is recorded is what was said.
+   */
   simulate(
     leadId: string,
     index: number,
     attempt: number,
     agent: AgentContext,
     lead: LeadContext,
-    context: CallContext | null = null
+    context: CallContext | null = null,
+    register: SpeechRegister = 'ENGLISH'
   ): SimulatedCall {
     const scenario = scenarioFor(index, attempt)
-    const transcript = buildTranscript(scenario, agent, lead, leadId, context)
+    const transcript = buildTranscript(scenario, agent, lead, leadId, context, register)
     return {
       providerCallId: demoCallId(leadId, attempt),
       scenario,

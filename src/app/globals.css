@@ -5949,3 +5949,354 @@ a.quick-card:hover {
   line-height: 1.6;
   color: var(--muted);
 }
+
+/* ==========================================================================
+   15. AI voice preview
+   --------------------------------------------------------------------------
+   The demo workspace's "Hear AI Live" panel, inside the test call dialog.
+
+   Built from the tokens the rest of the product uses rather than a palette of
+   its own: it is one more panel in a dialog, not a media player that wandered
+   in. Orange marks the live state and nothing else, so "something is happening
+   right now" reads at a glance without the panel shouting when it is idle.
+   ========================================================================== */
+
+.voice-preview {
+  margin-top: 18px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voice-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.voice-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+/* Said plainly and kept next to the title, so nobody can read the panel as a
+   recording of a phone call. */
+.voice-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Before anything has been spoken ----------------------------------------- */
+
+.voice-ready {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.voice-ready-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.voice-ready-copy strong {
+  font-size: 14px;
+}
+
+.voice-ready-copy span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.voice-play {
+  flex-shrink: 0;
+}
+
+/* While it is playing ------------------------------------------------------ */
+
+.voice-stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.voice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.voice-status.is-ai {
+  color: var(--accent-ink);
+}
+
+.voice-status.is-ai .voice-dot {
+  background: var(--accent);
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+.voice-status.is-prospect .voice-dot {
+  background: var(--muted-2);
+}
+
+.voice-status.is-complete {
+  color: var(--green);
+}
+
+.voice-status.is-complete .voice-dot {
+  background: var(--green);
+}
+
+.voice-status.is-error {
+  color: var(--red);
+}
+
+.voice-status.is-error .voice-dot {
+  background: var(--red);
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.55;
+  }
+}
+
+/* The line being said right now. */
+.voice-line {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-line.is-ai {
+  border-left-color: var(--accent);
+}
+
+.voice-line-who {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.voice-line p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.voice-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--tint);
+  overflow: hidden;
+}
+
+.voice-track-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+.voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.voice-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-right: auto;
+}
+
+.voice-controls .secondary-button {
+  padding: 7px 14px;
+  font-size: 12.5px;
+}
+
+.voice-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.voice-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius);
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Language, chosen before the call runs ------------------------------------ */
+
+.voice-language {
+  margin: 16px 0 0;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.voice-language legend {
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.voice-language-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.voice-language-option {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.voice-language-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.voice-language-option:hover {
+  border-color: var(--border-strong);
+}
+
+.voice-language-option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* Keyboard focus has to be visible on the label, because the input it wraps
+   is the thing that receives focus and the thing that cannot be seen. */
+.voice-language-option:focus-within {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.voice-language-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The transcript, in step with the voice ----------------------------------- */
+
+.transcript-line.is-speaking {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.transcript-speaking {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.transcript-speaking .voice-dot {
+  background: var(--accent);
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+@media (max-width: 560px) {
+  .voice-preview {
+    padding: 14px 14px 16px;
+  }
+
+  /* Stacked, because a play button squeezed beside two lines of copy on a
+     375px screen ends up too small to press. */
+  .voice-ready {
+    align-items: flex-start;
+  }
+
+  .voice-play {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .voice-clock {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .voice-controls .secondary-button {
+    flex: 1;
+    justify-content: center;
+    min-width: 96px;
+  }
+
+  .voice-language-option {
+    flex: 1;
+    justify-content: center;
+    min-width: 92px;
+  }
+}

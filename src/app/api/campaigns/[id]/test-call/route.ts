@@ -5,6 +5,8 @@ import { DemoVoiceProvider, DEMO_PROVIDER } from '@/server/providers/demo-voice'
 import { isDemoVoice } from '@/server/providers/voice'
 import { DemoAIProvider } from '@/server/ai/demo-ai'
 import { buildCallContext } from '@/server/demo/call-context'
+import { capabilitiesFor } from '@/server/capabilities'
+import { SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types'
 import type { AgentContext, LeadContext } from '@/server/demo/transcript'
 
 /**
@@ -28,6 +30,13 @@ import type { AgentContext, LeadContext } from '@/server/demo/transcript'
  *   a person.
  * - It does not schedule a follow-up. Nobody was contacted, so there is nothing
  *   to follow up.
+ *
+ * A workspace with the live voice preview capability may also choose the
+ * language the conversation is held in. That choice reaches the one transcript
+ * builder, so the call really is in that language — it is not an English call
+ * read aloud with a Hindi accent, and there is no second script anywhere. The
+ * capability is checked here, against the workspace `requireAuth` resolved from
+ * the session, because a control the browser can see is not a permission.
  */
 
 /**
@@ -51,6 +60,12 @@ const bodySchema = z.object({
     .min(6)
     .max(24)
     .regex(PHONE, 'Enter a phone number, digits only apart from + ( ) - and spaces.'),
+  /**
+   * The language to hold the call in. Absent means English, which is what
+   * every workspace without the capability gets and what every existing caller
+   * already sent.
+   */
+  language: z.enum(SPEECH_REGISTERS).optional(),
 })
 
 const idSchema = z.string().uuid()
@@ -89,6 +104,22 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return Response.json(
       { error: { code: 'VALIDATION_ERROR', details: parsed.error.flatten() } },
       { status: 400 }
+    )
+  }
+
+  // Refused rather than quietly downgraded to English. A caller that asked for
+  // a Hindi call and silently received an English one would have no way of
+  // knowing, and "it did something else instead" is a worse answer than "no".
+  const register: SpeechRegister = parsed.data.language ?? 'ENGLISH'
+  if (register !== 'ENGLISH' && !capabilitiesFor(auth.workspaceId).liveVoicePreview) {
+    return Response.json(
+      {
+        error: {
+          code: 'CAPABILITY_REQUIRED',
+          message: 'This workspace cannot run test calls in another language.',
+        },
+      },
+      { status: 403 }
     )
   }
 
@@ -154,7 +185,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       .eq('id', newest.id)
       .single()
 
-    if (recent) {
+    // A different language is a different intention, not a double click, so it
+    // is run rather than answered with the call before it.
+    const sameLanguage =
+      ((recent?.metadata as Record<string, unknown> | null)?.language ?? 'ENGLISH') === register
+
+    if (recent && sameLanguage) {
       return Response.json({
         data: {
           call: recent,
@@ -170,7 +206,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   // Seeded on the campaign rather than the stand-in lead, so two campaigns
   // tested with the same name produce different conversations.
-  const simulated = voice.simulate(id, prior.length, 1, agent, lead, callContext)
+  const simulated = voice.simulate(id, prior.length, 1, agent, lead, callContext, register)
 
   const analysis = await new DemoAIProvider(simulated.scenario).analyzeCall({
     transcript: simulated.transcript,
@@ -209,6 +245,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           contact_name: parsed.data.name,
           next_action: analysis.nextAction,
           scenario: simulated.scenario.key,
+          // Which language the conversation above was written in. Read back by
+          // the preview so it asks for the right voice; a Hindi transcript read
+          // by an English voice would be nobody's idea of a demo.
+          language: register,
         },
       },
       { onConflict: 'provider,provider_call_id' }

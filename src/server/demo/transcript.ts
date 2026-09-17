@@ -1,5 +1,7 @@
 import type { CallObjective } from '@/domain/ai-config'
+import type { SpeechRegister } from '@/lib/speech/speech-types'
 import { isForbidden, type CallContext } from './call-context'
+import { fill, GREETINGS, phrasebook, type Phrasebook } from './phrasebook'
 import { pickInRange, seedFrom, type Scenario } from './scenarios'
 
 /**
@@ -18,8 +20,15 @@ import { pickInRange, seedFrom, type Scenario } from './scenarios'
  * Without one, the agent's configuration alone drives the call exactly as
  * before.
  *
- * Deterministic throughout: the same lead, agent and configuration always
- * produce the same transcript.
+ * The language the call is held in is a parameter of this one generator rather
+ * than something applied afterwards. A transcript shown in English and voiced
+ * from a separate Hindi script would be two sources of truth; here the words
+ * that are displayed are the words that are spoken, in whichever language was
+ * asked for. The wording lives in `phrasebook.ts`; the structure, the seeding
+ * and the facts a call settles on are identical in every language.
+ *
+ * Deterministic throughout: the same lead, agent, configuration and language
+ * always produce the same transcript.
  */
 
 export interface AgentContext {
@@ -36,14 +45,14 @@ export interface LeadContext {
 }
 
 /** First name only, which is how an agent would actually address someone. */
-function firstName(lead: LeadContext): string {
+function firstName(lead: LeadContext, book: Phrasebook): string {
   const name = lead.name?.trim()
-  if (!name) return 'there'
-  return name.split(/\s+/)[0] ?? 'there'
+  if (!name) return book.someone
+  return name.split(/\s+/)[0] ?? book.someone
 }
 
-function company(agent: AgentContext): string {
-  return agent.companyName?.trim() || 'our team'
+function company(agent: AgentContext, book: Phrasebook): string {
+  return agent.companyName?.trim() || book.ourTeam
 }
 
 /**
@@ -51,25 +60,18 @@ function company(agent: AgentContext): string {
  * it as a note to the agent ("We sell 2BHK and 3BHK apartments in
  * Gachibowli"), which already reads as speech; it is only trimmed and
  * length-capped here.
+ *
+ * It is never translated. These are the user's own words about their own
+ * business, and a machine rewriting a product description into another
+ * language is how a demo ends up promising something the business does not
+ * sell. In a Hindi or Hinglish call it stays as written — which is also how
+ * these calls are really held, with the product named in English.
  */
 function offer(agent: AgentContext): string | null {
   const context = agent.businessContext?.trim()
   if (!context) return null
   const firstSentence = context.split(/(?<=[.!?])\s/)[0] ?? context
   return firstSentence.length > 180 ? `${firstSentence.slice(0, 177)}…` : firstSentence
-}
-
-/**
- * The agent's opening reason for calling.
- *
- * Deliberately does not quote `purpose`. Users write it as a goal in the
- * imperative — "Qualify buyers for site visits" — which cannot be spliced into
- * speech without producing "I'm calling about qualify buyers for site visits".
- * The purpose drives the agent's behaviour and shows up in the call summary;
- * what the agent says out loud is the business context, one line below.
- */
-function reason(): string {
-  return 'I am following up on your enquiry'
 }
 
 function line(speaker: 'Agent' | 'Lead', text: string): string {
@@ -83,6 +85,10 @@ function line(speaker: 'Agent' | 'Lead', text: string): string {
  * which is obvious the moment two calls are opened side by side and undercuts
  * the thing the transcript is meant to show. The choice is still a pure
  * function of the lead, so a demo stays repeatable.
+ *
+ * The seed deliberately does not include the language. The same lead picks the
+ * same phrasing slot in every language, so switching language shows the same
+ * call in other words rather than a different call.
  */
 function variant<T>(leadId: string, slot: string, options: readonly T[]): T {
   return options[seedFrom(`${leadId}:${slot}`) % options.length]!
@@ -146,9 +152,9 @@ function topics(agent: AgentContext): string[] {
 }
 
 /** Reads a list the way a person would say it: "a, b and c". */
-function spokenList(parts: readonly string[]): string {
+function spokenList(parts: readonly string[], join: string): string {
   if (parts.length <= 1) return parts[0] ?? ''
-  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+  return `${parts.slice(0, -1).join(', ')} ${join} ${parts[parts.length - 1]}`
 }
 
 /**
@@ -163,7 +169,12 @@ function spokenList(parts: readonly string[]): string {
  * speakers' turns on top of each other and the transcript stops reading as a
  * conversation.
  */
-function qualifying(agent: AgentContext, leadId: string, context: CallContext | null): string[] {
+function qualifying(
+  agent: AgentContext,
+  leadId: string,
+  context: CallContext | null,
+  book: Phrasebook
+): string[] {
   // CAMPAIGN INSTRUCTIONS over AGENT INSTRUCTIONS: a campaign that lists what
   // to ask replaces the agent's general instruction to ask something else.
   const asked = context && context.topics.length > 0 ? context.topics : topics(agent)
@@ -180,40 +191,27 @@ function qualifying(agent: AgentContext, leadId: string, context: CallContext | 
   if (asked.length === 0) {
     return obligations.length > 0
       ? [
-          line('Lead', variant(leadId, 'pitch-yes', [
-            'Yes, that is the sort of thing.',
-            'It could be, yes.',
-            'Broadly, yes.',
-          ])),
+          line('Lead', variant(leadId, 'pitch-yes', book.pitchYes)),
           line('Agent', obligations.join(' ')),
         ]
       : []
   }
 
+  const topicList = spokenList(asked, book.listJoin)
+
   return [
-    line('Lead', variant(leadId, 'pitch-yes', [
-      'Yes, that is the sort of thing.',
-      'It could be, yes.',
-      'Broadly, yes.',
-    ])),
-    line('Agent', allowed(leadId, 'qualify', [
-      `Before we go further, can I check a couple of things — ${spokenList(asked)}?`,
-      `So I point you at the right thing, could you tell me about ${spokenList(asked)}?`,
-      `It would help to know about ${spokenList(asked)} — can we run through those?`,
-    ], forbidden)),
-    line('Lead', variant(leadId, 'qualify-answer', [
-      'Yes, of course. I have a fair idea of what I am after on all of that.',
-      'Sure. I know roughly what I want there.',
-      'Happy to — I have thought about most of that already.',
-    ])),
-    line('Agent', [
-      variant(leadId, 'qualify-ack', [
-        'That is helpful, thank you.',
-        'Understood — that gives me what I need.',
-        'Good, that narrows it down.',
-      ]),
-      ...obligations,
-    ].join(' ')),
+    line('Lead', variant(leadId, 'pitch-yes', book.pitchYes)),
+    line(
+      'Agent',
+      allowed(
+        leadId,
+        'qualify',
+        book.qualify.map((template) => fill(template, { topics: topicList })),
+        forbidden
+      )
+    ),
+    line('Lead', variant(leadId, 'qualify-answer', book.qualifyAnswer)),
+    line('Agent', [variant(leadId, 'qualify-ack', book.qualifyAck), ...obligations].join(' ')),
   ]
 }
 
@@ -222,7 +220,9 @@ function opening(
   agent: AgentContext,
   lead: LeadContext,
   leadId: string,
-  context: CallContext | null
+  context: CallContext | null,
+  book: Phrasebook,
+  register: SpeechRegister
 ): string[] {
   const forbidden = context?.mustNotSay ?? []
 
@@ -230,29 +230,32 @@ function opening(
   // with no campaign the agent's own context is still what it offers.
   const pitch = context ? context.pitch : offer(agent)
 
+  const greetings = GREETINGS[register]
+  const greetOptions = book.greet.map((template, index) =>
+    fill(template, {
+      greeting: greetings[index] ?? greetings[0] ?? '',
+      name: firstName(lead, book),
+      agent: agent.name,
+      company: company(agent, book),
+      reason: book.reason,
+    })
+  )
+
   // A script's own greeting is the user's words, so it wins over ours. It is
   // still introduced by the agent, because a script that forgets to say who is
   // calling would otherwise produce a call that never identifies itself.
   const greet = context?.scriptOpening
     ? `${context.scriptOpening}`
-    : allowed(leadId, 'greet', [
-        `Hi ${firstName(lead)}, this is ${agent.name} from ${company(agent)}. ${reason()} — is now an alright time?`,
-        `Hello ${firstName(lead)}, ${agent.name} calling from ${company(agent)}. ${reason()} — have you got a minute?`,
-        `Hi ${firstName(lead)}, it's ${agent.name} at ${company(agent)}. ${reason()} — is this a good moment?`,
-      ], forbidden)
+    : allowed(leadId, 'greet', greetOptions, forbidden)
 
-  const ack = variant(leadId, 'ack', ['Yes, go ahead.', 'Sure, now is fine.', 'Yes, I have a couple of minutes.'])
-  const ask = allowed(leadId, 'ask', [
-    'Does that sound like what you were looking for?',
-    'Is that the sort of thing you had in mind?',
-    'Does that line up with what you are after?',
-  ], forbidden)
+  const ack = variant(leadId, 'ack', book.ack)
+  const ask = allowed(leadId, 'ask', book.ask, forbidden)
 
   return [
     line('Agent', greet),
     line('Lead', ack),
     ...(pitch ? [line('Agent', `${pitch} ${ask}`)] : []),
-    ...qualifying(agent, leadId, context),
+    ...qualifying(agent, leadId, context, book),
   ]
 }
 
@@ -264,6 +267,11 @@ function opening(
  * read those choices rather than assume them. Without this the summary says
  * "Saturday afternoon" under a transcript that agreed Wednesday evening —
  * a contradiction visible on the call detail page.
+ *
+ * Every value here is English whatever language the call was held in. These
+ * are facts about the call rather than part of it, and they are read by the
+ * summary, the next action and the follow-up message, which a business reads
+ * in one language however many languages it calls in.
  */
 export interface CallFacts {
   /** Visit slot agreed, e.g. "Wednesday evening". Interested calls only. */
@@ -286,61 +294,33 @@ interface ClosingResult {
 }
 
 /**
- * How an interested call ends when the objective is not to book a slot.
+ * What an interested call means when the objective is not to book a slot.
  *
- * Each ends on the agent so the turn-taking still alternates, and each carries
- * the next action its objective implies, so nothing downstream has to guess
- * what "interested" meant for this campaign.
+ * The wording the agent uses lives in the phrasebook; only the next action is
+ * here, because it is written for the business rather than said on the call.
  */
-const NON_BOOKING_CLOSE: Record<
+const NON_BOOKING_NEXT_ACTION: Record<
   Exclude<CallObjective, 'BOOK_APPOINTMENT' | 'BOOK_DEMO'>,
-  { agent: string; lead: string; wrapUp: string; nextAction: string }
+  string
 > = {
-  QUALIFY: {
-    agent: 'I have what I need for now. Would it help if one of our team called you with the specifics?',
-    lead: 'Yes, that would be useful.',
-    wrapUp: 'I will pass this to the team and they will be in touch.',
-    nextAction: 'Hand this lead to a salesperson with the answers captured on the call.',
-  },
-  COLLECT_REQUIREMENTS: {
-    agent: 'Let me make sure I have your requirements down correctly before I pass this on.',
-    lead: 'Yes, that is all of it.',
-    wrapUp: 'I have noted that down and will send a written summary across.',
-    nextAction: 'Send the written summary and prepare a quote from the requirements captured.',
-  },
-  GENERATE_INTEREST: {
-    agent: 'I will not take more of your time — may I send you the details to look over?',
-    lead: 'Yes, send them across.',
-    wrapUp: 'I will send those over now.',
-    nextAction: 'Send the information pack and check back once they have read it.',
-  },
-  FOLLOW_UP: {
-    agent: 'Good — shall I pick this back up with you once you have had a think?',
-    lead: 'Yes, that works.',
-    wrapUp: 'I will follow up with you shortly.',
-    nextAction: 'Follow up once they have had time to consider it.',
-  },
+  QUALIFY: 'Hand this lead to a salesperson with the answers captured on the call.',
+  COLLECT_REQUIREMENTS: 'Send the written summary and prepare a quote from the requirements captured.',
+  GENERATE_INTEREST: 'Send the information pack and check back once they have read it.',
+  FOLLOW_UP: 'Follow up once they have had time to consider it.',
 }
 
 type Closing = (
   agent: AgentContext,
   lead: LeadContext,
   leadId: string,
-  context: CallContext | null
+  context: CallContext | null,
+  book: Phrasebook
 ) => ClosingResult
 
 const CLOSINGS: Record<Scenario['key'], Closing> = {
-  INTERESTED: (_agent, lead, leadId, context) => {
-    const keen = line('Lead', variant(leadId, 'keen', [
-      "Yes, that's close to what I had in mind. What would the next step be?",
-      'That does sound right. How do we take it forward?',
-      "Yes, I'd like to see it. What happens next?",
-    ]))
-    const thanks = line('Lead', variant(leadId, 'thanks', [
-      'Perfect, thank you.',
-      'Great, thanks.',
-      'That works, thanks.',
-    ]))
+  INTERESTED: (_agent, lead, leadId, context, book) => {
+    const keen = line('Lead', variant(leadId, 'keen', book.keen))
+    const thanks = line('Lead', variant(leadId, 'thanks', book.thanks))
 
     // A campaign that is only qualifying should not book a visit, and one
     // collecting requirements should not either. Only the slot-booking
@@ -350,71 +330,65 @@ const CLOSINGS: Record<Scenario['key'], Closing> = {
     const booking = objective === 'BOOK_APPOINTMENT' || objective === 'BOOK_DEMO'
 
     if (!booking) {
-      const close = NON_BOOKING_CLOSE[objective]
+      const close = book.nonBooking[objective]
       return {
-        facts: { objectiveNextAction: close.nextAction },
+        facts: { objectiveNextAction: NON_BOOKING_NEXT_ACTION[objective] },
         lines: [
           keen,
           line('Agent', close.agent),
           line('Lead', close.lead),
-          line('Agent', `Thanks ${firstName(lead)}, ${close.wrapUp}`),
+          line(
+            'Agent',
+            `${fill(book.wrapUpPrefix, { name: firstName(lead, book) })} ${close.wrapUp}`
+          ),
         ],
       }
     }
 
-    const slot = variant(leadId, 'slot', [
-      ['Weekend works. Saturday afternoon if possible.', 'Saturday afternoon'],
-      ['Weekday evening is easier for me — Wednesday after six?', 'Wednesday evening'],
-      ['Sunday morning would suit me best.', 'Sunday morning'],
-    ] as const)
+    const slot = variant(leadId, 'slot', book.slots)
 
-    const what = objective === 'BOOK_DEMO' ? 'a demo' : 'a visit'
-    const send =
-      objective === 'BOOK_DEMO'
-        ? "I'll send the joining link across on WhatsApp."
-        : "I'll send the details across on WhatsApp so you have the address and my number."
+    const what = objective === 'BOOK_DEMO' ? book.whatDemo : book.whatVisit
+    const send = objective === 'BOOK_DEMO' ? book.sendDemo : book.sendVisit
 
     return {
-      facts: { agreedSlot: slot[1] },
+      facts: { agreedSlot: slot[2] },
       lines: [
         keen,
-        line('Agent', `I can set up ${what} this week. Would a weekday evening or the weekend suit you better?`),
+        line('Agent', fill(book.bookingOffer, { what })),
         line('Lead', slot[0]),
-        line('Agent', `${slot[1]} it is, ${firstName(lead)}. ${send}`),
+        line(
+          'Agent',
+          fill(book.slotConfirm, { slot: slot[1], name: firstName(lead, book), send })
+        ),
         thanks,
       ],
     }
   },
-  FOLLOW_UP: (_agent, lead, leadId) => {
-    const day = variant(leadId, 'day', ['Thursday', 'Monday', 'Friday'])
+  FOLLOW_UP: (_agent, lead, leadId, _context, book) => {
+    const day = variant(leadId, 'day', book.days)
     return {
-      facts: { callbackDay: day },
+      facts: { callbackDay: day[1] },
       lines: [
-        line('Lead', variant(leadId, 'busy', [
-          "It's interesting, but I'm in the middle of something right now.",
-          'Sounds useful, but I am driving at the moment.',
-          'I am interested, just not free to talk right now.',
-        ])),
-        line('Agent', 'Of course — I will not keep you. Would it help if I sent the details across and called back later in the week?'),
-        line('Lead', `Yes, send them over and call me ${day}.`),
-        line('Agent', `Will do, ${firstName(lead)}. I'll message you the details and ring you on ${day}.`),
+        line('Lead', variant(leadId, 'busy', book.busy)),
+        line('Agent', book.followUpOffer),
+        line('Lead', fill(book.followUpAsk, { day: day[0] })),
+        line(
+          'Agent',
+          fill(book.followUpConfirm, { name: firstName(lead, book), day: day[0] })
+        ),
       ],
     }
   },
-  NOT_INTERESTED: (_agent, lead, leadId) => {
-    const declined = variant(leadId, 'no', [
-      ["Thanks, but I've already sorted this out elsewhere.", 'has already arranged this elsewhere'],
-      ['Not for me, I am afraid — I decided against it.', 'has decided against it'],
-      ['No thank you, we went with someone else.', 'has gone with another provider'],
-    ] as const)
+  NOT_INTERESTED: (_agent, lead, leadId, _context, book) => {
+    const declined = variant(leadId, 'no', book.declines)
 
     return {
       facts: { declineReason: declined[1] },
       lines: [
         line('Lead', declined[0]),
-        line('Agent', 'Understood, and thank you for telling me. Would you like me to take you off this list?'),
-        line('Lead', 'Yes please.'),
-        line('Agent', `Done — you won't hear from us again. Have a good day, ${firstName(lead)}.`),
+        line('Agent', book.declineAck),
+        line('Lead', book.declineYes),
+        line('Agent', fill(book.declineDone, { name: firstName(lead, book) })),
       ],
     }
   },
@@ -437,12 +411,14 @@ export function buildTranscript(
   agent: AgentContext,
   lead: LeadContext,
   leadId: string,
-  context: CallContext | null = null
+  context: CallContext | null = null,
+  register: SpeechRegister = 'ENGLISH'
 ): TranscriptResult {
   if (!scenario.answered) return { text: null, facts: {} }
-  const closing = CLOSINGS[scenario.key](agent, lead, leadId, context)
+  const book = phrasebook(register)
+  const closing = CLOSINGS[scenario.key](agent, lead, leadId, context, book)
   return {
-    text: [...opening(agent, lead, leadId, context), ...closing.lines].join('\n'),
+    text: [...opening(agent, lead, leadId, context, book, register), ...closing.lines].join('\n'),
     facts: closing.facts,
   }
 }

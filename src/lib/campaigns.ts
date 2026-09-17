@@ -3,6 +3,7 @@ import { readAiCallConfig, type AiCallConfig } from '@/domain/ai-config'
 import { ApiError, asBoolean, asNumber, asString, isRecord, request } from '@/lib/api/client'
 import { toCallDetail } from '@/lib/calls'
 import { CAMPAIGN_STATUS_DISPLAY } from '@/lib/status'
+import { SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types'
 
 /** Client-side boundary for `/api/campaigns`. */
 
@@ -194,12 +195,25 @@ export interface TestCallResult {
   summary: string | null
   nextAction: string | null
   contact: { name: string; phone: string }
+  /**
+   * The language the conversation above was written in, read back from the
+   * call rather than from what was asked for. A preview that trusted the
+   * request would read a fallback English transcript in a Hindi voice on the
+   * one occasion the two disagreed.
+   */
+  language: SpeechRegister
 }
 
-/** Runs one simulated call against this campaign's configuration. */
+/**
+ * Runs one simulated call against this campaign's configuration.
+ *
+ * `language` is only accepted from workspaces with the live voice preview
+ * capability, and that is decided on the server. Sending it from anywhere else
+ * is refused rather than quietly downgraded.
+ */
 export async function runTestCall(
   campaignId: string,
-  contact: { name: string; phone: string }
+  contact: { name: string; phone: string; language?: SpeechRegister }
 ): Promise<TestCallResult> {
   const data = await request(`/api/campaigns/${campaignId}/test-call`, {
     method: 'POST',
@@ -210,6 +224,9 @@ export async function runTestCall(
   const call = toCallDetail(isRecord(data) ? data.call : null)
   if (!call) throw new ApiError('The call finished but could not be read back.', { status: 200 })
 
+  const recorded = isRecord(data) && isRecord(data.call) ? data.call.metadata : null
+  const language = isRecord(recorded) ? asString(recorded.language) : null
+
   return {
     callId: call.id,
     status: call.status,
@@ -218,8 +235,13 @@ export async function runTestCall(
     transcript: call.transcript,
     summary: call.summary,
     nextAction: call.nextAction,
-    contact,
+    contact: { name: contact.name, phone: contact.phone },
+    language: isRegister(language) ? language : 'ENGLISH',
   }
+}
+
+function isRegister(value: string | null): value is SpeechRegister {
+  return value !== null && (SPEECH_REGISTERS as readonly string[]).includes(value)
 }
 
 export async function createCampaign(input: CampaignInput): Promise<Campaign> {

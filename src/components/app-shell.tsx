@@ -7,6 +7,7 @@ import { Icon } from './icons';
 import { ThemeSwitcher } from './theme/theme-switcher';
 import { ZemoWidget } from './zemo/zemo-widget';
 import { FOOTER_GROUPS, MAIN_GROUPS, findNavItem, type NavGroup } from '@/config/navigation';
+import { WorkspaceProvider } from './workspace-context';
 import { fetchWorkspace, workspaceInitial, type WorkspaceIdentity } from '@/lib/workspace';
 
 /**
@@ -102,125 +103,127 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        Skip to content
-      </a>
+    <WorkspaceProvider value={workspace}>
+      <div className="app-shell">
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
 
-      <aside className="sidebar">
-        <Link className="brand" href="/dashboard">
-          <span className="brand-mark" aria-hidden="true">
-            AI
-          </span>
-          <span className="brand-name">AIBOT</span>
-        </Link>
-
-        {/* Informational, not a switcher: this account has one workspace, and a
-            control that looks like a menu but opens nothing is worse than a
-            label. It links to the page where the name is actually editable. */}
-        <Link className="workspace" href="/settings">
-          <span className="workspace-avatar" aria-hidden="true">
-            {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
-          </span>
-          <span className="workspace-copy">
-            <strong>{workspace?.workspaceName || 'Loading…'}</strong>
-            <span>{workspace?.role ? roleLabel(workspace.role) : 'Workspace'}</span>
-          </span>
-          <Icon name="settings" size={14} />
-        </Link>
-
-        <div className="sidebar-scroll">{MAIN_GROUPS.map((group) => renderGroup(group))}</div>
-
-        <div className="sidebar-bottom">
-          {FOOTER_GROUPS.map((group) => renderGroup(group))}
-          <div className="sidebar-theme">
-            <ThemeSwitcher compact />
-          </div>
-          <SignOutButton />
-        </div>
-      </aside>
-
-      <div className="main">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <button
-              type="button"
-              ref={toggleRef}
-              className="icon-button nav-toggle"
-              aria-label="Open navigation menu"
-              aria-expanded={drawerOpen}
-              onClick={() => setDrawerOpen(true)}
-            >
-              <Icon name="menu" size={17} />
-            </button>
-            <span className="breadcrumb-trail">
-              {workspace?.workspaceName ?? 'Workspace'} /{' '}
-              <strong>{current?.label ?? 'Overview'}</strong>
+        <aside className="sidebar">
+          <Link className="brand" href="/dashboard">
+            <span className="brand-mark" aria-hidden="true">
+              AI
             </span>
-          </div>
+            <span className="brand-name">AIBOT</span>
+          </Link>
 
-          <div className="top-actions">
-            <div className="topbar-theme">
+          {/* Informational, not a switcher: this account has one workspace, and a
+              control that looks like a menu but opens nothing is worse than a
+              label. It links to the page where the name is actually editable. */}
+          <Link className="workspace" href="/settings">
+            <span className="workspace-avatar" aria-hidden="true">
+              {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
+            </span>
+            <span className="workspace-copy">
+              <strong>{workspace?.workspaceName || 'Loading…'}</strong>
+              <span>{workspace?.role ? roleLabel(workspace.role) : 'Workspace'}</span>
+            </span>
+            <Icon name="settings" size={14} />
+          </Link>
+
+          <div className="sidebar-scroll">{MAIN_GROUPS.map((group) => renderGroup(group))}</div>
+
+          <div className="sidebar-bottom">
+            {FOOTER_GROUPS.map((group) => renderGroup(group))}
+            <div className="sidebar-theme">
               <ThemeSwitcher compact />
             </div>
-            <div className="avatar" aria-hidden="true">
-              {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
-            </div>
+            <SignOutButton />
           </div>
-        </header>
+        </aside>
 
-        {children}
-      </div>
-
-      {drawerOpen ? (
-        <>
-          <button
-            type="button"
-            className="drawer-backdrop"
-            aria-label="Close navigation menu"
-            onClick={closeDrawer}
-          />
-          <div
-            ref={drawerRef}
-            className="drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation"
-          >
-            <div className="drawer-head">
-              <Link className="brand" href="/dashboard" style={{ padding: 0 }}>
-                <span className="brand-mark" aria-hidden="true">
-                  AI
-                </span>
-                <span className="brand-name">AIBOT</span>
-              </Link>
+        <div className="main">
+          <header className="topbar">
+            <div className="breadcrumb">
               <button
                 type="button"
-                className="icon-button"
-                aria-label="Close navigation menu"
-                onClick={closeDrawer}
+                ref={toggleRef}
+                className="icon-button nav-toggle"
+                aria-label="Open navigation menu"
+                aria-expanded={drawerOpen}
+                onClick={() => setDrawerOpen(true)}
               >
-                <Icon name="close" size={17} />
+                <Icon name="menu" size={17} />
               </button>
+              <span className="breadcrumb-trail">
+                {workspace?.workspaceName ?? 'Workspace'} /{' '}
+                <strong>{current?.label ?? 'Overview'}</strong>
+              </span>
             </div>
-            <div className="sidebar-scroll">
-              {MAIN_GROUPS.map((group) => renderGroup(group, closeDrawer))}
-            </div>
-            <div className="sidebar-bottom">
-              {FOOTER_GROUPS.map((group) => renderGroup(group, closeDrawer))}
-              <div className="sidebar-theme">
-                <ThemeSwitcher />
-              </div>
-              <SignOutButton />
-            </div>
-          </div>
-        </>
-      ) : null}
 
-      {/* The workspace id scopes tour progress: the same person joining a
-          second workspace has not been shown that one yet. */}
-      <ZemoWidget userState="active-workspace" workspaceId={workspace?.workspaceId} />
-    </div>
+            <div className="top-actions">
+              <div className="topbar-theme">
+                <ThemeSwitcher compact />
+              </div>
+              <div className="avatar" aria-hidden="true">
+                {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
+              </div>
+            </div>
+          </header>
+
+          {children}
+        </div>
+
+        {drawerOpen ? (
+          <>
+            <button
+              type="button"
+              className="drawer-backdrop"
+              aria-label="Close navigation menu"
+              onClick={closeDrawer}
+            />
+            <div
+              ref={drawerRef}
+              className="drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation"
+            >
+              <div className="drawer-head">
+                <Link className="brand" href="/dashboard" style={{ padding: 0 }}>
+                  <span className="brand-mark" aria-hidden="true">
+                    AI
+                  </span>
+                  <span className="brand-name">AIBOT</span>
+                </Link>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Close navigation menu"
+                  onClick={closeDrawer}
+                >
+                  <Icon name="close" size={17} />
+                </button>
+              </div>
+              <div className="sidebar-scroll">
+                {MAIN_GROUPS.map((group) => renderGroup(group, closeDrawer))}
+              </div>
+              <div className="sidebar-bottom">
+                {FOOTER_GROUPS.map((group) => renderGroup(group, closeDrawer))}
+                <div className="sidebar-theme">
+                  <ThemeSwitcher />
+                </div>
+                <SignOutButton />
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {/* The workspace id scopes tour progress: the same person joining a
+            second workspace has not been shown that one yet. */}
+        <ZemoWidget userState="active-workspace" workspaceId={workspace?.workspaceId} />
+      </div>
+    </WorkspaceProvider>
   );
 }
 
