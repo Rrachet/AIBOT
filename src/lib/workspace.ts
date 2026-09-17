@@ -1,4 +1,5 @@
 import { ApiError, asString, isRecord, request } from '@/lib/api/client'
+import { readCapabilities, type WorkspaceCapabilities } from '@/domain/capabilities'
 
 /** Client-side boundary for `/api/me`. */
 
@@ -6,6 +7,15 @@ export interface WorkspaceIdentity {
   workspaceId: string
   workspaceName: string
   role: string
+  /**
+   * What this workspace may do beyond the product everyone gets.
+   *
+   * Resolved server-side and sent here so the shell knows which controls to
+   * render. It decides what is *shown*, never what is *allowed* — every
+   * capability is checked again on the server where it is acted on, so a
+   * browser that flipped one of these gains a button and nothing behind it.
+   */
+  capabilities: WorkspaceCapabilities
 }
 
 /**
@@ -31,6 +41,7 @@ export async function fetchWorkspace(signal?: AbortSignal): Promise<WorkspaceIde
     workspaceId,
     workspaceName: asString(data.workspaceName) ?? '',
     role: asString(data.role) ?? '',
+    capabilities: readCapabilities(data.capabilities),
   }
 }
 
@@ -56,6 +67,7 @@ export async function renameWorkspace(name: string): Promise<WorkspaceIdentity> 
     workspaceId: asString(data.workspaceId) ?? '',
     workspaceName: asString(data.workspaceName) ?? name,
     role: asString(data.role) ?? '',
+    capabilities: readCapabilities(data.capabilities),
   }
 }
 

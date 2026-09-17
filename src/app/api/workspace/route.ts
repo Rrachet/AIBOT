@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { requireAuth } from '@/lib/api/auth'
+import { capabilitiesFor } from '@/server/capabilities'
 
 /**
  * The workspace the session belongs to.
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
       workspaceId: auth.workspaceId,
       workspaceName: auth.workspaceName,
       role: auth.role,
+      capabilities: capabilitiesFor(auth.workspaceId),
     },
   })
 }
@@ -69,7 +71,15 @@ export async function PATCH(request: Request) {
     )
   }
 
+  // Capabilities are resolved from the id, which a rename cannot change. They
+  // are returned so the caller's picture of the workspace stays complete rather
+  // than silently losing them on a save.
   return Response.json({
-    data: { workspaceId: data.id, workspaceName: data.name, role: auth.role },
+    data: {
+      workspaceId: data.id,
+      workspaceName: data.name,
+      role: auth.role,
+      capabilities: capabilitiesFor(auth.workspaceId),
+    },
   })
 }
