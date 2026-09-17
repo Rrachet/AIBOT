@@ -39,6 +39,7 @@ export default async function LoginPage({
 
   return (
     <AuthLayout
+      headline="Your leads are already waiting."
       title="Welcome back"
       subtitle="Sign in to your workspace."
       footer={
@@ -48,7 +49,7 @@ export default async function LoginPage({
       }
     >
       {error ? (
-        <div className="auth-alert auth-alert-error" role="alert">
+        <div className="auth-alert" role="alert">
           {error}
           {configDetail ? <span className="auth-alert-detail">{configDetail}</span> : null}
         </div>

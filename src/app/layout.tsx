@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { DM_Sans, Manrope } from 'next/font/google';
+import { ThemeProvider } from '@/components/theme/theme-provider';
+import { ThemeScript } from '@/components/theme/theme-script';
 import './globals.css';
 
 /**
@@ -35,13 +37,23 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#151515',
+  // Per theme, so the browser chrome on a phone matches the page rather than
+  // sitting dark above a paper-white light mode.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f6f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#151515' },
+  ],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${manrope.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${dmSans.variable} ${manrope.variable}`} suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

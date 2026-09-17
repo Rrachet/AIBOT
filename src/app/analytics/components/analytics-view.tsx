@@ -112,7 +112,7 @@ export function AnalyticsView() {
       <SectionPage
         eyebrow="Performance"
         title="Analytics"
-        subtitle="Understand how your AI outreach turns leads into conversations."
+        subtitle="Four questions, answered from your own records."
       >
         <Card>
           <EmptyState
@@ -134,7 +134,7 @@ export function AnalyticsView() {
     <SectionPage
       eyebrow="Performance"
       title="Analytics"
-      subtitle="Understand how your AI outreach turns leads into conversations."
+      subtitle="Four questions, answered from your own records."
     >
       {calls.simulated > 0 ? (
         <p className="demo-banner" role="note">
@@ -188,9 +188,18 @@ export function AnalyticsView() {
 
       <Card>
         <CardHeader
-          title="Outcomes"
-          subtitle="What every call in this workspace led to — percentages are of all calls, not of answered ones"
+          title="Where do prospects drop?"
+          subtitle="Each stage is the same people, counted further along. Percentages are of all calls, not of answered ones."
         />
+        <Funnel
+          stages={[
+            { label: 'Leads', value: leads.total },
+            { label: 'Called', value: calls.total },
+            { label: 'Answered', value: calls.answered },
+            { label: 'Qualified', value: qualified, accent: true },
+          ]}
+        />
+
         <dl className="detail-grid">
           <Fact label="Total leads" value={leads.total.toLocaleString()} />
           <Fact label="Calls" value={calls.total.toLocaleString()} />
@@ -217,7 +226,7 @@ export function AnalyticsView() {
 
       <Card>
         <CardHeader
-          title="Campaign performance"
+          title="Are my campaigns working?"
           subtitle="How each campaign converted the leads attached to it"
         />
         {summary.campaignPerformance.length === 0 ? (
@@ -254,7 +263,10 @@ export function AnalyticsView() {
       </Card>
 
       <Card>
-        <CardHeader title="Agent performance" subtitle="How each agent is converting conversations" />
+        <CardHeader
+          title="Which agents qualify the most?"
+          subtitle="Answer and qualification rates, per agent"
+        />
         {summary.agentPerformance.length === 0 ? (
           <EmptyState
             icon="bot"
@@ -278,6 +290,46 @@ export function AnalyticsView() {
         )}
       </Card>
     </SectionPage>
+  );
+}
+
+/**
+ * The funnel, drawn to scale against its widest stage.
+ *
+ * Bars rather than a chart library: four numbers do not justify a dependency,
+ * and a bar whose width is its share of the first stage is read correctly by
+ * everyone without a legend. A stage with nothing above it to divide by shows
+ * no percentage at all rather than a misleading 0%.
+ */
+function Funnel({
+  stages,
+}: {
+  stages: { label: string; value: number; accent?: boolean }[];
+}) {
+  const top = stages[0]?.value ?? 0;
+
+  return (
+    <div className="funnel">
+      {stages.map((stage, index) => {
+        const previous = index === 0 ? null : stages[index - 1]!.value;
+        const share = top > 0 ? Math.max((stage.value / top) * 100, stage.value > 0 ? 4 : 0) : 0;
+        const step =
+          previous === null || previous === 0
+            ? null
+            : `${Math.round((stage.value / previous) * 100)}% of ${stages[index - 1]!.label.toLowerCase()}`;
+
+        return (
+          <div key={stage.label} className={`funnel-row${stage.accent ? ' is-accent' : ''}`}>
+            <span className="funnel-label">{stage.label}</span>
+            <span className="funnel-track">
+              <span className="funnel-bar" style={{ width: `${share}%` }} />
+            </span>
+            <span className="funnel-value">{stage.value.toLocaleString()}</span>
+            <span className="funnel-step">{step ?? '\u2014'}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

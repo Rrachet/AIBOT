@@ -230,8 +230,17 @@ export function AgentsView() {
                 </h2>
                 {secondary ? <p className="agent-role">{secondary}</p> : null}
 
+                {/* The job, then the manner. An agent is a colleague you brief,
+                    so the card reads as the brief rather than as a record. */}
+                {agent.purpose?.trim() ? (
+                  <p className="agent-purpose">
+                    <span>Job</span>
+                    {agent.purpose.trim()}
+                  </p>
+                ) : null}
+
                 {agent.instructions?.trim() ? (
-                  <p className="agent-excerpt">{agent.instructions.trim()}</p>
+                  <blockquote className="agent-excerpt">{agent.instructions.trim()}</blockquote>
                 ) : (
                   <p className="agent-excerpt agent-excerpt-empty">
                     No instructions yet — the agent will not know what to say.

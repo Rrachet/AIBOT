@@ -11,8 +11,23 @@ import { getSupabaseEnv } from './env'
  */
 const PUBLIC_PATHS = new Set(['/', '/pricing', '/login', '/signup'])
 
+/**
+ * The only API route an unauthenticated visitor may reach.
+ *
+ * Zemo takes demo requests from the public site, so this one endpoint has to
+ * be callable without a session. It is safe to open because the table behind
+ * it grants `anon` insert and nothing else — no policy allows a read, so a
+ * request that goes in can never come back out. Every other `/api/*` path
+ * stays closed to anonymous callers.
+ */
+const PUBLIC_API_PATHS = new Set(['/api/demo-requests'])
+
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith('/auth/')
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_API_PATHS.has(pathname) ||
+    pathname.startsWith('/auth/')
+  )
 }
 
 /** API routes answer with JSON and must never be redirected to /login. */
@@ -167,8 +182,8 @@ export async function updateSession(request: NextRequest) {
   const user = error ? null : data.user
 
   if (!user) {
-    if (isApi) return unauthenticatedJson()
     if (isPublic) return response
+    if (isApi) return unauthenticatedJson()
 
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'

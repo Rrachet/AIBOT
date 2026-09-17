@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { SectionPage } from '@/components/section-page';
 import { Icon, type IconName } from '@/components/icons';
 import { Card, CardHeader } from '@/components/ui/card';
-import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/badge';
 import { DataTable, EntityCell } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -47,6 +46,12 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
   const requestRef = useRef(0);
 
+  // Resolved after mount: the server's hour is not the reader's, and a
+  // "Good evening" rendered at their 9am would be the first thing on the page
+  // and visibly wrong.
+  const [greeting, setGreeting] = useState('Welcome back');
+  useEffect(() => setGreeting(timeOfDayGreeting(new Date().getHours())), []);
+
   const load = useCallback(async (signal?: AbortSignal) => {
     const requestId = ++requestRef.current;
     setState({ phase: 'loading' });
@@ -55,7 +60,7 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
       const [summary, leads, activity] = await Promise.all([
         fetchSummary(signal),
         fetchLeads(signal),
-        fetchActivity(8, signal),
+        fetchActivity(5, signal),
       ]);
       if (requestRef.current !== requestId) return;
       setState({ phase: 'ready', summary, leads, activity });
@@ -75,7 +80,7 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
   // The name is whatever the account actually carries. When signup did not
   // collect one there is nothing to greet by, and a name invented from an
   // email address would be worse than none.
-  const title = greetingName ? `Welcome back, ${greetingName}.` : 'Welcome back.';
+  const title = greetingName ? `${greeting}, ${greetingName}.` : `${greeting}.`;
 
   if (state.phase === 'error') {
     return (
@@ -98,15 +103,27 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
 
   if (state.phase === 'loading') {
     return (
-      <SectionPage eyebrow="Command center" title={title} subtitle="Loading your workspace…">
-        <section className="stat-grid" aria-label="Workspace summary">
-          {[0, 1, 2, 3].map((index) => (
-            <div key={index} className="card stat-card">
-              <span className="skeleton" style={{ width: 90 }} />
-              <span className="skeleton" style={{ width: 60, height: 26, marginTop: 12 }} />
+      <SectionPage eyebrow="Command center" title={title} subtitle="Loading your pipeline…">
+        <div className="pipeline is-loading" aria-label="Loading your pipeline">
+          {[0, 1, 2, 3, 4].map((index) => (
+            <div key={index} className="pipeline-stage">
+              <span className="skeleton" style={{ width: 60 }} />
+              <span className="skeleton" style={{ width: 38, height: 24, marginTop: 10 }} />
+              <span className="skeleton" style={{ width: 74, marginTop: 10 }} />
             </div>
           ))}
-        </section>
+        </div>
+        <div className="grid-2">
+          <div className="card" style={{ padding: 20 }}>
+            <span className="skeleton" style={{ width: 150 }} />
+            <span className="skeleton" style={{ width: 240, marginTop: 12 }} />
+            <span className="skeleton" style={{ width: 200, marginTop: 10 }} />
+          </div>
+          <div className="card" style={{ padding: 20 }}>
+            <span className="skeleton" style={{ width: 130 }} />
+            <span className="skeleton" style={{ width: 210, marginTop: 12 }} />
+          </div>
+        </div>
       </SectionPage>
     );
   }
@@ -117,7 +134,13 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
   const attention = attentionItems(summary);
   const recentLeads = leads.slice(0, RECENT_LEADS);
 
-  const qualified = summary.leads.byStatus.QUALIFIED ?? 0;
+  // Leads currently *marked* qualified, which is a property of the person.
+  const qualifiedLeads = summary.leads.byStatus.QUALIFIED ?? 0;
+  // Calls that *came out* qualified, which is a property of the conversation.
+  // The pipeline counts conversations, so it uses this one — dividing the lead
+  // count by answered calls mixed two different populations and disagreed with
+  // the same figure on the analytics page.
+  const qualifiedCalls = summary.calls.byOutcome.QUALIFIED ?? 0;
   const noAnswer = summary.calls.byStatus.NO_ANSWER ?? 0;
   const pendingFollowUps = summary.followUps.byStatus.PENDING ?? 0;
   const sentFollowUps = summary.followUps.byStatus.SENT ?? 0;
@@ -189,32 +212,15 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
         </Card>
       ) : null}
 
-      <section className="stat-grid" aria-label="Workspace summary">
-        <StatCard
-          label="Total leads"
-          value={summary.leads.total.toLocaleString()}
-          meta={qualified > 0 ? `${qualified.toLocaleString()} qualified` : 'None qualified yet'}
-          icon="users"
-        />
-        <StatCard
-          label="Active campaigns"
-          value={summary.campaigns.running.toLocaleString()}
-          meta={`${summary.campaigns.total.toLocaleString()} in total`}
-          icon="megaphone"
-        />
-        <StatCard
-          label="Calls"
-          value={summary.calls.total.toLocaleString()}
-          meta={`${summary.calls.answered.toLocaleString()} answered · ${noAnswer.toLocaleString()} no answer`}
-          icon="phone"
-        />
-        <StatCard
-          label="Follow-ups"
-          value={summary.followUps.total.toLocaleString()}
-          meta={`${sentFollowUps.toLocaleString()} sent · ${pendingFollowUps.toLocaleString()} pending`}
-          icon="message"
-        />
-      </section>
+      <PipelineStrip
+        leads={summary.leads.total}
+        called={summary.calls.total}
+        answered={summary.calls.answered}
+        qualified={qualifiedCalls}
+        followUps={summary.followUps.total}
+        pending={pendingFollowUps}
+        noAnswer={noAnswer}
+      />
 
       {summary.campaignPerformance.length > 0 ? (
         <Card>
@@ -285,7 +291,14 @@ export function DashboardView({ greetingName }: { greetingName: string | null })
 
         <div className="section-stack">
           <Card>
-            <CardHeader title="Needs attention" subtitle="Leads waiting on a decision or a channel" />
+            <CardHeader
+              title="Needs attention"
+              subtitle={
+                attention.length === 0
+                  ? 'Nothing is waiting on you'
+                  : `${attention.length} thing${attention.length === 1 ? '' : 's'} waiting on you`
+              }
+            />
             {attention.length === 0 ? (
               <EmptyState
                 icon="check"
@@ -541,4 +554,101 @@ function attentionItems(summary: AnalyticsSummary): AttentionItem[] {
   }
 
   return items;
+}
+
+/** Morning / afternoon / evening, by the reader's own clock. */
+function timeOfDayGreeting(hour: number): string {
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/**
+ * The pipeline, as one object rather than four unrelated numbers.
+ *
+ * Leads, calls, answers, qualifications and follow-ups are the same people
+ * counted further along, so they are shown as a sequence with the drop between
+ * each pair named. Four separate metric cards hid exactly the thing worth
+ * knowing: where the funnel narrows.
+ *
+ * Every figure is a count of rows. A rate with nothing to divide by shows a
+ * dash, never a zero, because "0%" and "no data yet" mean opposite things.
+ */
+function PipelineStrip({
+  leads,
+  called,
+  answered,
+  qualified,
+  followUps,
+  pending,
+  noAnswer,
+}: {
+  leads: number;
+  called: number;
+  answered: number;
+  qualified: number;
+  followUps: number;
+  pending: number;
+  noAnswer: number;
+}) {
+  const rate = (part: number, whole: number): string =>
+    whole > 0 ? `${Math.round((part / whole) * 100)}%` : '—';
+
+  const stages = [
+    {
+      id: 'leads',
+      label: 'Leads',
+      value: leads,
+      meta: leads === 0 ? 'Nothing imported yet' : 'In the pipeline',
+      icon: 'users' as const,
+    },
+    {
+      id: 'called',
+      label: 'Called',
+      value: called,
+      meta: `${rate(called, leads)} of your leads`,
+      icon: 'phone' as const,
+    },
+    {
+      id: 'answered',
+      label: 'Answered',
+      value: answered,
+      meta: noAnswer > 0 ? `${noAnswer.toLocaleString()} did not pick up` : 'Everyone picked up',
+      icon: 'message' as const,
+    },
+    {
+      id: 'qualified',
+      label: 'Qualified',
+      value: qualified,
+      meta: `${rate(qualified, answered)} of answered calls`,
+      icon: 'target' as const,
+      accent: true,
+    },
+    {
+      id: 'follow-ups',
+      label: 'Follow-ups',
+      value: followUps,
+      meta: pending > 0 ? `${pending.toLocaleString()} still waiting` : 'Nothing outstanding',
+      icon: 'clock' as const,
+    },
+  ];
+
+  return (
+    <div className="pipeline" aria-label="Pipeline summary">
+      {stages.map((stage, index) => (
+        <div
+          key={stage.id}
+          className={`pipeline-stage${stage.accent ? ' is-accent' : ''} rise-in`}
+          style={{ ['--i' as string]: index }}
+        >
+          <span className="pipeline-label">
+            <Icon name={stage.icon} size={14} />
+            {stage.label}
+          </span>
+          <span className="pipeline-value">{stage.value.toLocaleString()}</span>
+          <span className="pipeline-meta">{stage.meta}</span>
+        </div>
+      ))}
+    </div>
+  );
 }

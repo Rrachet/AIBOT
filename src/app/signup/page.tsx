@@ -28,8 +28,9 @@ export default async function SignupPage({
 
   return (
     <AuthLayout
+      headline="Start working your leads."
       title="Create your workspace"
-      subtitle="Free while AIBOT is in demo. No card, no telephony contract."
+      subtitle="Set up your workspace and build your first AI sales workflow."
       footer={
         <>
           Already have an account? <Link href="/login">Sign in</Link>
@@ -37,7 +38,7 @@ export default async function SignupPage({
       }
     >
       {error ? (
-        <div className="auth-alert auth-alert-error" role="alert">
+        <div className="auth-alert" role="alert">
           {error}
         </div>
       ) : null}

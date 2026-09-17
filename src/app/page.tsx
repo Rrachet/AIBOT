@@ -3,17 +3,34 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { LeadJourney } from '@/components/marketing/lead-journey';
+import { ZemoAvatar } from '@/components/zemo/zemo-avatar';
+import { ZemoWidget } from '@/components/zemo/zemo-widget';
+import { PLANS } from '@/content/plans';
 
 export const metadata: Metadata = {
-  title: 'AIBOT — Put Every Lead to Work',
+  title: 'AIBOT — Every lead gets worked',
   description:
-    'AIBOT calls, qualifies and follows up with your inbound leads automatically. Configure an AI agent, run a campaign, read every transcript, and hand qualified leads to your sales team over WhatsApp.',
+    'AI-powered conversations that qualify leads, follow up on prospects and keep your pipeline moving. Calls, transcripts, outcomes, follow-ups and analytics in one workspace.',
+  keywords: [
+    'AI lead qualification',
+    'AI sales calls',
+    'lead follow-up automation',
+    'WhatsApp follow-up',
+    'sales workspace',
+  ],
   openGraph: {
-    title: 'AIBOT — Put Every Lead to Work',
+    title: 'AIBOT — Every lead gets worked',
     description:
-      'AI calling, lead qualification, follow-up and WhatsApp handoff for teams that live on inbound leads.',
+      'AI-powered conversations that qualify leads, follow up on prospects and keep your pipeline moving.',
     type: 'website',
     siteName: 'AIBOT',
+    locale: 'en_IN',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AIBOT — Every lead gets worked',
+    description: 'AI conversations that qualify your leads and keep the pipeline moving.',
   },
   alternates: { canonical: '/' },
 };
@@ -21,10 +38,11 @@ export const metadata: Metadata = {
 /**
  * The homepage.
  *
- * The product proof is built from the application's own components — the same
- * badges, stat cards, transcript bubbles and message previews the product
- * renders — rather than from pictures of a product that does not exist. If a
- * section here looks a certain way, that is because the software does.
+ * Built out of the product rather than around it: every panel below is made
+ * from the application's own components, so a visitor is looking at AIBOT and
+ * not at an illustration of a robot. The one thing this page must achieve is
+ * that somebody who has never heard of it understands, within one screen, that
+ * a lead arrives and gets worked.
  */
 export default function HomePage() {
   return (
@@ -34,15 +52,15 @@ export default function HomePage() {
       <main id="main-content">
         <Hero />
         <Problem />
-        <Agents />
-        <Campaign />
-        <CallSection />
-        <FollowUp />
-        <Analytics />
+        <Workflow />
+        <Showcase />
+        <ZemoSection />
+        <PricingTeaser />
         <FinalCta />
       </main>
 
       <SiteFooter />
+      <ZemoWidget userState="anonymous" />
     </div>
   );
 }
@@ -51,355 +69,428 @@ function Hero() {
   return (
     <section className="hero">
       <div className="site-shell hero-inner">
-        <span className="eyebrow-chip">
-          <span className="pulse-dot" aria-hidden="true" />
-          AI lead engagement
-        </span>
+        <div className="hero-copy">
+          <span className="hero-badge">
+            <ZemoAvatar size={20} />
+            <b>Zemo</b> can walk you through it
+          </span>
 
-        <h1 className="hero-title">Every lead gets worked.</h1>
+          <h1>Every lead gets worked.</h1>
 
-        <p className="hero-sub">
-          AIBOT calls, qualifies and follows up with your leads — automatically. No enquiry sits in
-          a spreadsheet waiting for someone to notice it.
-        </p>
+          <p className="hero-sub">
+            AI-powered conversations that qualify leads, follow up on prospects and keep your
+            pipeline moving — without anyone having to remember.
+          </p>
 
-        <div className="hero-actions">
-          <Link className="primary-button lg" href="/signup">
-            Start free
-          </Link>
-          <Link className="secondary-button lg" href="#how-it-works">
-            See how it works
-          </Link>
+          <div className="hero-actions">
+            <Link className="primary-button lg" href="/signup">
+              Start free
+            </Link>
+            <Link className="secondary-button lg" href="#how-it-works">
+              See how it works
+            </Link>
+          </div>
+
+          <p className="hero-note">
+            Calls and WhatsApp messages are simulated until you connect a provider. Everything else
+            — your leads, agents, campaigns, transcripts and analytics — is real from the first
+            minute.
+          </p>
         </div>
 
-        <p className="hero-note">
-          Calls and WhatsApp messages are simulated until you connect a provider. Everything else —
-          your leads, agents, campaigns, transcripts and analytics — is real from the first minute.
-        </p>
-
-        <div className="hero-proof">
-          <div className="card hero-stat">
-            <span className="hero-stat-label">Lead arrives</span>
-            <strong>0s</strong>
-            <span className="hero-stat-meta">Queued the moment it lands</span>
-          </div>
-          <span className="hero-arrow" aria-hidden="true">
-            <Icon name="arrow" size={18} />
-          </span>
-          <div className="card hero-stat is-active">
-            <span className="hero-stat-label">AI calls</span>
-            <strong>
-              Calling<span className="ellipsis" aria-hidden="true" />
-            </strong>
-            <span className="hero-stat-meta">Your script, your questions</span>
-          </div>
-          <span className="hero-arrow" aria-hidden="true">
-            <Icon name="arrow" size={18} />
-          </span>
-          <div className="card hero-stat">
-            <span className="hero-stat-label">Outcome</span>
-            <strong>
-              <span className="badge green">Qualified</span>
-            </strong>
-            <span className="hero-stat-meta">With a transcript and next action</span>
-          </div>
-        </div>
+        <LeadJourney />
       </div>
     </section>
   );
 }
-
-const COLD = [
-  'A lead fills in your form at 9pm.',
-  'Nobody sees it until the morning.',
-  'Someone calls once. No answer.',
-  'It drops off the list.',
-  'The lead buys from whoever called back.',
-];
-
-const WORKED = [
-  'A lead fills in your form at 9pm.',
-  'AIBOT calls, using your script.',
-  'It asks your qualifying questions.',
-  'The outcome, transcript and next action are recorded.',
-  'A WhatsApp follow-up goes out, and your team sees a qualified lead.',
-];
 
 function Problem() {
   return (
-    <section className="section" id="how-it-works">
-      <div className="site-shell">
-        <SectionHead
-          eyebrow="The problem"
-          title="Most leads are lost to silence, not to competitors."
-          sub="The gap between an enquiry arriving and someone actually speaking to it is where revenue leaks."
-        />
-
-        <div className="compare">
-          <div className="card compare-col">
-            <h3 className="compare-title">
-              <span className="compare-dot is-cold" aria-hidden="true" />
-              Without AIBOT
-            </h3>
-            <ol className="compare-list">
-              {COLD.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-            <p className="compare-foot is-cold">The lead goes cold.</p>
-          </div>
-
-          <div className="card compare-col is-aibot">
-            <h3 className="compare-title">
-              <span className="compare-dot is-hot" aria-hidden="true" />
-              With AIBOT
-            </h3>
-            <ol className="compare-list">
-              {WORKED.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-            <p className="compare-foot is-hot">The lead gets worked.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const AGENT_FIELDS = [
-  { label: 'Agent instructions', value: 'Be warm and brief. Ask before launching into detail.' },
-  { label: 'Call objective', value: 'Book a visit or appointment' },
-  { label: 'Product knowledge', value: '2BHK and 3BHK apartments in Gachibowli, 65L to 1.2Cr.' },
-  { label: 'Qualification questions', value: 'Budget range · Preferred location · Possession timeline' },
-  { label: 'Must say', value: 'This call may be recorded for quality.' },
-  { label: 'Must not say', value: 'guaranteed returns' },
-];
-
-function Agents() {
-  return (
     <section className="section is-alt">
-      <div className="site-shell split">
-        <div className="split-copy">
-          <SectionHead
-            eyebrow="AI agents"
-            title="Configure an agent the way you would brief a new hire."
-            sub="An agent is not a black box. You write what it sells, what it asks, what it must say and what it must never say — and the call follows it."
-            align="left"
-          />
-          <ul className="tick-list">
-            <li>
-              <Icon name="check" size={14} /> Paste the script your team already uses
-            </li>
-            <li>
-              <Icon name="check" size={14} /> Upload it as a .txt or .md file
-            </li>
-            <li>
-              <Icon name="check" size={14} /> Change it and hear the difference on a test call
-            </li>
-          </ul>
-          <Link className="site-link is-cta" href="/signup">
-            Build your first agent <Icon name="arrow" size={14} />
-          </Link>
-        </div>
-
-        <div className="card config-proof">
-          <div className="card-head">
-            <div>
-              <div className="card-title">AI call configuration</div>
-              <div className="card-subtitle">What the agent is given on every call</div>
-            </div>
-            <span className="badge green">Ready</span>
-          </div>
-          <dl className="config-list">
-            {AGENT_FIELDS.map((field) => (
-              <div key={field.label}>
-                <dt>{field.label}</dt>
-                <dd>{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const STEPS = [
-  { n: '01', title: 'Import leads', body: 'Upload a CSV or Excel file. Duplicates are caught for you.' },
-  { n: '02', title: 'Configure the AI', body: 'Product, objective, script and qualifying questions.' },
-  { n: '03', title: 'Test call', body: 'Hear exactly what the agent will say before anyone is called.' },
-  { n: '04', title: 'Start the campaign', body: 'AIBOT works the list and records every outcome.' },
-  { n: '05', title: 'Track outcomes', body: 'Qualified, follow-up, not interested — with the reason.' },
-];
-
-function Campaign() {
-  return (
-    <section className="section">
       <div className="site-shell">
-        <SectionHead
-          eyebrow="Campaigns"
-          title="From a list of names to a worked pipeline."
-          sub="A campaign is a guided setup, not a switch you flip and hope."
-        />
-        <ol className="steps-grid">
-          {STEPS.map((step) => (
-            <li key={step.n} className="card step-card">
-              <span className="step-number">{step.n}</span>
-              <strong>{step.title}</strong>
-              <span>{step.body}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
+        <div className="section-head">
+          <span className="section-eyebrow">The problem</span>
+          <h2>Leads don&rsquo;t usually disappear. They get forgotten.</h2>
+          <p>
+            Almost nobody loses a deal to a competitor at 9pm on a Tuesday. They lose it to a busy
+            week.
+          </p>
+        </div>
 
-const TRANSCRIPT: readonly [string, string][] = [
-  ['Agent', 'Hi Kavya, this is Priya from Skyline Homes. I am following up on your enquiry — have you got a minute?'],
-  ['Lead', 'Yes, go ahead.'],
-  ['Agent', 'We sell 2BHK and 3BHK apartments in Gachibowli and Kondapur, ready to move in. Does that line up with what you are after?'],
-  ['Lead', 'Broadly, yes.'],
-  ['Agent', 'It would help to know about preferred location, budget and possession timeline — can we run through those?'],
-  ['Lead', 'Yes, of course. I have a fair idea of what I am after on all of that.'],
-  ['Agent', 'Wednesday evening it is, Kavya. I will send the details across on WhatsApp.'],
-];
-
-function CallSection() {
-  return (
-    <section className="section is-alt">
-      <div className="site-shell split is-reverse">
-        <div className="card call-proof">
-          <div className="card-head">
-            <div>
-              <div className="card-title">Kavya Reddy</div>
-              <div className="card-subtitle">Gachibowli &amp; Kondapur enquiries · 2:25</div>
-            </div>
-            <span className="cell-stack">
-              <span className="badge green">Qualified</span>
-              <span className="demo-tag">Demo call</span>
-            </span>
+        <div className="decay">
+          <div className="decay-step">
+            <span className="decay-time">Tuesday, 9:14 pm</span>
+            <h3>The enquiry lands</h3>
+            <p>Someone fills in your form. It joins forty others in an inbox nobody is watching.</p>
           </div>
-          <div className="transcript in-dialog">
-            {TRANSCRIPT.map(([speaker, text], index) => (
-              <div
-                key={index}
-                className={`transcript-line ${speaker === 'Agent' ? 'is-agent' : 'is-lead'}`}
-              >
-                <span className="transcript-speaker">{speaker}</span>
-                <span className="transcript-text">{text}</span>
-              </div>
-            ))}
+          <div className="decay-step">
+            <span className="decay-time">Wednesday</span>
+            <h3>Nobody calls</h3>
+            <p>
+              The team is working yesterday&rsquo;s list. Today&rsquo;s enquiry is at the bottom of
+              it.
+            </p>
           </div>
-          <div className="card-body">
-            <p className="next-action">
-              <span className="next-action-label">Next action</span>
-              Send the address and confirm the Wednesday evening slot.
+          <div className="decay-step">
+            <span className="decay-time">Friday</span>
+            <h3>Someone calls once</h3>
+            <p>No answer. It is marked as tried, and nothing schedules the second attempt.</p>
+          </div>
+          <div className="decay-step is-cold">
+            <span className="decay-time">Next week</span>
+            <h3>They buy elsewhere</h3>
+            <p>
+              Not because the other quote was better. Because somebody else picked up the phone
+              first.
             </p>
           </div>
         </div>
 
-        <div className="split-copy">
-          <SectionHead
-            eyebrow="Calls"
-            title="Read the conversation, not a status code."
-            sub="Every call keeps its transcript, its outcome, a plain-language summary and the next action — so a salesperson can pick it up without listening to anything."
-            align="left"
-          />
-          <ul className="tick-list">
-            <li>
-              <Icon name="check" size={14} /> Outcome, duration, agent and campaign on one screen
-            </li>
-            <li>
-              <Icon name="check" size={14} /> Unanswered calls show nothing was said, never a
-              made-up conversation
-            </li>
-            <li>
-              <Icon name="check" size={14} /> Simulated calls are labelled everywhere they appear
-            </li>
-          </ul>
+        <div className="decay-answer">
+          <p>
+            AIBOT calls the lead while it is still warm, asks your qualification questions, records
+            what was said and queues the follow-up before anyone has a chance to forget.
+          </p>
+          <Link className="primary-button" href="/signup">
+            Start working your leads
+          </Link>
         </div>
       </div>
     </section>
   );
 }
 
-function FollowUp() {
-  return (
-    <section className="section">
-      <div className="site-shell">
-        <SectionHead
-          eyebrow="Follow-ups &amp; WhatsApp"
-          title="The second touch happens whether anyone remembers or not."
-          sub="A no-answer or a “call me later” becomes a queued follow-up with the message already written."
-        />
+function Workflow() {
+  const nodes = [
+    { step: '01', title: 'Lead', body: 'Imported from a CSV, added by hand, or sitting in your list already.' },
+    { step: '02', title: 'AI agent', body: 'Your agent — its name, its company, its manner, its brief.' },
+    { step: '03', title: 'Call', body: 'It opens with your script and works through your questions.' },
+    { step: '04', title: 'Qualification', body: 'An outcome decided from the conversation, with the reason attached.' },
+    { step: '05', title: 'Follow-up', body: 'Scheduled at the end of the call, not remembered afterwards.' },
+    { step: '06', title: 'WhatsApp', body: 'The message written from what was actually said.' },
+    { step: '07', title: 'Human', body: 'A salesperson picks up a lead that is already warm.', human: true },
+  ];
 
-        <div className="flow-row">
-          {['Qualified', 'Follow-up queued', 'WhatsApp', 'Sales handoff'].map((label, index) => (
-            <div key={label} className="flow-step">
-              <div className="card flow-card">
-                <span className="flow-index">{index + 1}</span>
-                <strong>{label}</strong>
-              </div>
-              {index < 3 ? (
-                <span className="flow-arrow" aria-hidden="true">
-                  <Icon name="arrow" size={16} />
-                </span>
-              ) : null}
+  return (
+    <section className="section" id="how-it-works">
+      <div className="site-shell">
+        <div className="section-head is-center">
+          <span className="section-eyebrow">How it works</span>
+          <h2>From a name on a list to a conversation worth having.</h2>
+          <p>
+            Seven steps, and your team only has to be present for the last one.
+          </p>
+        </div>
+
+        <div className="flow">
+          {nodes.map((node) => (
+            <div key={node.step} className={`flow-node${node.human ? ' is-human' : ''}`}>
+              <b>{node.step}</b>
+              <strong>{node.title}</strong>
+              <p>{node.body}</p>
             </div>
           ))}
         </div>
-
-        <div className="card wa-proof">
-          <div className="card-head">
-            <div>
-              <div className="card-title">Message preview</div>
-              <div className="card-subtitle">Exactly what would be sent, as it is stored</div>
-            </div>
-            <span className="demo-tag">Demo / Simulated WhatsApp</span>
-          </div>
-          <div className="wa-window">
-            <div className="wa-bubble">
-              <span className="wa-bubble-text">
-                {'Hi Divya \u{1F44B}\n\nWe tried calling from Skyline Homes but could not reach you.\n\nWe sell 2BHK and 3BHK apartments in Gachibowli and Kondapur, ready to move in.\n\nReply here and we will pick it up whenever suits you.'}
-              </span>
-              <span className="wa-bubble-time">Not sent</span>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );
 }
 
-const METRICS = [
-  { label: 'Leads', meta: 'Everyone in the pipeline' },
-  { label: 'Calls placed', meta: 'Answered and unanswered' },
-  { label: 'Answer rate', meta: 'Of every call made' },
-  { label: 'Qualification rate', meta: 'Of answered calls' },
-];
-
-function Analytics() {
+function Showcase() {
   return (
     <section className="section is-alt">
       <div className="site-shell">
-        <SectionHead
-          eyebrow="Analytics"
-          title="Counted from your own records. Nothing estimated."
-          sub="Every figure is a count of rows in your workspace. A rate with nothing to divide by shows a dash rather than a zero, and test calls never inflate a campaign's numbers."
-        />
-        <div className="metric-grid">
-          {METRICS.map((metric) => (
-            <div key={metric.label} className="card metric-card">
-              <span className="metric-label">{metric.label}</span>
-              <span className="metric-bar" aria-hidden="true">
-                <span />
-              </span>
-              <span className="metric-meta">{metric.meta}</span>
+        <div className="section-head">
+          <span className="section-eyebrow">The product</span>
+          <h2>Give every campaign a brain.</h2>
+          <p>
+            Not a black box with a volume knob. You write what the agent says, what it asks and what
+            it must never say — and you hear the difference before a single lead does.
+          </p>
+        </div>
+
+        <div className="showcase">
+          <div className="showcase-copy">
+            <h3>Tell AIBOT who to call, what to ask and what to do next.</h3>
+            <p>
+              A campaign holds the lead list, the agent, the product, the objective, the script and
+              the qualification questions. The readiness panel says what is still missing before
+              anybody is contacted.
+            </p>
+            <ul className="showcase-list">
+              <li>
+                <Icon name="check" size={15} />
+                Paste a script, or upload a .txt or .md file
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                List what the agent must say — and must never say
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                Run a test call against a contact you choose, kept out of your analytics
+              </li>
+            </ul>
+          </div>
+
+          <div className="showcase-art">
+            <div className="art-head">
+              <span>AI call configuration</span>
+              <span className="badge green">Ready</span>
+            </div>
+            <div className="mini">
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Call objective</strong>
+                  <span>Book a visit or appointment</span>
+                </span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Product knowledge</strong>
+                  <span>2BHK and 3BHK apartments in Gachibowli, 65L to 1.2Cr</span>
+                </span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Qualification questions</strong>
+                  <span>Budget range · Preferred location · Possession timeline</span>
+                </span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Must never say</strong>
+                  <span>guaranteed returns · cheapest in the market</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="showcase is-flipped">
+          <div className="showcase-copy">
+            <h3>Because the second conversation matters too.</h3>
+            <p>
+              A no-answer is not a dead lead, and &ldquo;call me later&rdquo; is not a note in
+              somebody&rsquo;s head. Both become a queued follow-up with the message already
+              written.
+            </p>
+            <ul className="showcase-list">
+              <li>
+                <Icon name="check" size={15} />
+                Overdue first, so the queue is in the order the work is due
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                Send from the row — clearing the queue never means leaving the page
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                Every message recorded on the lead&rsquo;s timeline
+              </li>
+            </ul>
+          </div>
+
+          <div className="showcase-art">
+            <div className="art-head">
+              <span>Follow-up queue</span>
+              <span className="badge amber">2 due</span>
+            </div>
+            <div className="mini">
+              <div className="mini-row is-head">
+                <span className="mini-main">Lead</span>
+                <span className="mini-meta">Scheduled</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-avatar">MI</span>
+                <span className="mini-main">
+                  <strong>Meera Iyer</strong>
+                  <span>WhatsApp · site visit details</span>
+                </span>
+                <span className="mini-meta">Due</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-avatar">RS</span>
+                <span className="mini-main">
+                  <strong>Rahul Sharma</strong>
+                  <span>WhatsApp · tried calling, no answer</span>
+                </span>
+                <span className="mini-meta">Due</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-avatar">AD</span>
+                <span className="mini-main">
+                  <strong>Anita Desai</strong>
+                  <span>WhatsApp · asked to be called back</span>
+                </span>
+                <span className="mini-meta">Tomorrow</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="showcase">
+          <div className="showcase-copy">
+            <h3>Know what happened without listening to every call.</h3>
+            <p>
+              Every figure is a count of rows in your workspace. A rate with nothing to divide by
+              shows a dash rather than a zero, and test calls never inflate a campaign&rsquo;s
+              numbers.
+            </p>
+            <ul className="showcase-list">
+              <li>
+                <Icon name="check" size={15} />
+                Which campaigns convert, and which agents qualify
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                Where prospects drop out of the conversation
+              </li>
+              <li>
+                <Icon name="check" size={15} />
+                A plain-language summary on every call, not a log
+              </li>
+            </ul>
+          </div>
+
+          <div className="showcase-art">
+            <div className="art-head">
+              <span>Campaign performance</span>
+            </div>
+            <div className="mini">
+              <div className="mini-row is-head">
+                <span className="mini-main">Campaign</span>
+                <span className="mini-meta">Qualified</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Gachibowli &amp; Kondapur enquiries</strong>
+                  <span>8 leads · 8 called</span>
+                </span>
+                <span className="badge green">3</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Answer rate</strong>
+                  <span>7 of 9 answered</span>
+                </span>
+                <span className="mini-meta">77.8%</span>
+              </div>
+              <div className="mini-row">
+                <span className="mini-main">
+                  <strong>Average call length</strong>
+                  <span>Across answered calls</span>
+                </span>
+                <span className="mini-meta">1:59</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ZemoSection() {
+  return (
+    <section className="section">
+      <div className="site-shell zemo-intro">
+        <div className="showcase-copy">
+          <span className="section-eyebrow">Meet Zemo</span>
+          <h3>The bit of AIBOT that answers back.</h3>
+          <p>
+            Zemo knows this product — every page, every term, every plan. Ask it what a campaign is,
+            which plan fits you, or where something lives, and it will tell you. Ask it something it
+            does not know and it will tell you that too, which is the part most chat bubbles skip.
+          </p>
+          <ul className="showcase-list">
+            <li>
+              <Icon name="check" size={15} />
+              Knows which page you are on and what it is for
+            </li>
+            <li>
+              <Icon name="check" size={15} />
+              Explains agents, campaigns, outcomes and follow-ups in plain words
+            </li>
+            <li>
+              <Icon name="check" size={15} />
+              Can set up a demo without a form or a calendar dance
+            </li>
+          </ul>
+        </div>
+
+        <div className="zemo-sample">
+          <div className="zemo-sample-turn">
+            <ZemoAvatar size={22} />
+            <p>Trying to figure out which plan fits?</p>
+          </div>
+          <div className="zemo-sample-turn is-user">
+            <p>What&rsquo;s the difference between an agent and a campaign?</p>
+          </div>
+          <div className="zemo-sample-turn">
+            <ZemoAvatar size={22} mood="talking" />
+            <p>
+              An agent is <em>who</em> calls — a name, a company, a manner. A campaign is{' '}
+              <em>why</em> — the list, the product, the objective, the questions. One agent, many
+              campaigns.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PricingTeaser() {
+  return (
+    <section className="section is-alt">
+      <div className="site-shell">
+        <div className="section-head is-center">
+          <span className="section-eyebrow">Pricing</span>
+          <h2>Start free. Pay when AIBOT is doing the work.</h2>
+          <p>
+            Every plan includes the whole product. What changes is how many leads, agents and
+            campaigns you can run.
+          </p>
+        </div>
+
+        <div className="plan-grid">
+          {PLANS.map((plan) => (
+            <div key={plan.id} className={`plan${plan.featured ? ' is-featured' : ''}`}>
+              {plan.featured ? <span className="plan-flag">Most chosen</span> : null}
+              <h3 className="plan-name">{plan.name}</h3>
+              <p className="plan-tagline">{plan.tagline}</p>
+              <div className="plan-price">
+                <strong>{plan.price}</strong>
+                <span>{plan.cadence}</span>
+              </div>
+              <ul className="plan-limits">
+                {plan.limits.map((limit) => (
+                  <li key={limit.label}>
+                    <span className="limit-label">{limit.label}</span>
+                    <span className="limit-value">{limit.value}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="plan-group">
+                <Link
+                  className={
+                    plan.featured ? 'primary-button plan-cta' : 'secondary-button plan-cta'
+                  }
+                  href="/signup"
+                >
+                  {plan.cta}
+                </Link>
+              </div>
             </div>
           ))}
         </div>
+
+        <p style={{ textAlign: 'center', marginTop: 28 }}>
+          <Link className="site-link" href="/pricing">
+            See everything in each plan →
+          </Link>
+        </p>
       </div>
     </section>
   );
@@ -407,17 +498,17 @@ function Analytics() {
 
 function FinalCta() {
   return (
-    <section className="section final-cta">
+    <section className="section">
       <div className="site-shell">
         <div className="cta-panel">
-          <h2>Put every lead to work.</h2>
+          <h2>Your next lead shouldn&rsquo;t have to wait.</h2>
           <p>
-            Create a workspace, build an agent and run a campaign in an afternoon. No card, no
+            Create a workspace, build an agent and run a campaign this afternoon. No card, no
             telephony contract, nothing to install.
           </p>
           <div className="hero-actions">
             <Link className="primary-button lg" href="/signup">
-              Start free
+              Start working your leads
             </Link>
             <Link className="secondary-button lg" href="/pricing">
               View pricing
@@ -426,25 +517,5 @@ function FinalCta() {
         </div>
       </div>
     </section>
-  );
-}
-
-function SectionHead({
-  eyebrow,
-  title,
-  sub,
-  align = 'center',
-}: {
-  eyebrow: string;
-  title: string;
-  sub: string;
-  align?: 'center' | 'left';
-}) {
-  return (
-    <div className={`section-head${align === 'left' ? ' is-left' : ''}`}>
-      <span className="section-eyebrow">{eyebrow}</span>
-      <h2>{title}</h2>
-      <p>{sub}</p>
-    </div>
   );
 }

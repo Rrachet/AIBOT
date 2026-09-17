@@ -4,15 +4,19 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from './icons';
-import { FOOTER_NAV, MAIN_NAV, NAV_ITEMS, findNavItem } from '@/config/navigation';
+import { ThemeSwitcher } from './theme/theme-switcher';
+import { ZemoWidget } from './zemo/zemo-widget';
+import { FOOTER_GROUPS, MAIN_GROUPS, findNavItem, type NavGroup } from '@/config/navigation';
 import { fetchWorkspace, workspaceInitial, type WorkspaceIdentity } from '@/lib/workspace';
 
 /**
- * Application chrome: sidebar, topbar and mobile drawer.
+ * Application chrome: sidebar, topbar, mobile drawer and Zemo.
  *
- * The active nav item is derived from the current pathname rather than passed
- * in by each page, so navigation state can never drift out of sync with the
- * route. Pages stay server components — they are passed through as `children`.
+ * The sidebar is grouped the way the work is — what you own, what was said,
+ * what it added up to — rather than as one flat list of routes. The active
+ * item is derived from the pathname rather than passed in by each page, so
+ * navigation state can never drift out of sync with the route. Pages stay
+ * server components; they come through as `children`.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -71,25 +75,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [drawerOpen, closeDrawer]);
 
-  const navLinks = (items: readonly (typeof NAV_ITEMS)[number][], onNavigate?: () => void) =>
-    items.map((item) => {
-      const isActive = current?.href === item.href;
-      return (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={isActive ? 'active' : undefined}
-          aria-current={isActive ? 'page' : undefined}
-          title={item.label}
-          onClick={onNavigate}
-        >
-          <span className="nav-icon">
-            <Icon name={item.icon} size={16} />
-          </span>
-          <span>{item.label}</span>
-        </Link>
-      );
-    });
+  const renderGroup = (group: NavGroup, onNavigate?: () => void) => (
+    <div className="nav-group" key={group.label}>
+      <div className="nav-label">{group.label}</div>
+      <nav className="nav" aria-label={group.label}>
+        {group.items.map((item) => {
+          const isActive = current?.href === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={isActive ? 'active' : undefined}
+              aria-current={isActive ? 'page' : undefined}
+              onClick={onNavigate}
+            >
+              <span className="nav-icon">
+                <Icon name={item.icon} size={16} />
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
 
   return (
     <div className="app-shell">
@@ -105,7 +114,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-name">AIBOT</span>
         </Link>
 
-        <button type="button" className="workspace">
+        {/* Informational, not a switcher: this account has one workspace, and a
+            control that looks like a menu but opens nothing is worse than a
+            label. It links to the page where the name is actually editable. */}
+        <Link className="workspace" href="/settings">
           <span className="workspace-avatar" aria-hidden="true">
             {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
           </span>
@@ -113,18 +125,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             <strong>{workspace?.workspaceName || 'Loading…'}</strong>
             <span>{workspace?.role ? roleLabel(workspace.role) : 'Workspace'}</span>
           </span>
-          <Icon name="chevron-down" size={14} />
-        </button>
+          <Icon name="settings" size={14} />
+        </Link>
 
-        <div className="nav-label">Workspace</div>
-        <nav className="nav" aria-label="Main">
-          {navLinks(MAIN_NAV)}
-        </nav>
+        <div className="sidebar-scroll">{MAIN_GROUPS.map((group) => renderGroup(group))}</div>
 
         <div className="sidebar-bottom">
-          <nav className="nav" aria-label="Account">
-            {navLinks(FOOTER_NAV)}
-          </nav>
+          {FOOTER_GROUPS.map((group) => renderGroup(group))}
+          <div className="sidebar-theme">
+            <ThemeSwitcher compact />
+          </div>
           <SignOutButton />
         </div>
       </aside>
@@ -143,17 +153,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Icon name="menu" size={17} />
             </button>
             <span className="breadcrumb-trail">
-              Workspace / <strong>{current?.label ?? 'Overview'}</strong>
+              {workspace?.workspaceName ?? 'Workspace'} /{' '}
+              <strong>{current?.label ?? 'Overview'}</strong>
             </span>
           </div>
 
           <div className="top-actions">
-            <button type="button" className="icon-button" aria-label="Search">
-              <Icon name="search" size={16} />
-            </button>
-            <button type="button" className="icon-button" aria-label="Notifications">
-              <Icon name="bell" size={16} />
-            </button>
+            <div className="topbar-theme">
+              <ThemeSwitcher compact />
+            </div>
             <div className="avatar" aria-hidden="true">
               {workspace ? workspaceInitial(workspace.workspaceName) : '·'}
             </div>
@@ -194,18 +202,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Icon name="close" size={17} />
               </button>
             </div>
-            <nav className="nav" aria-label="Main">
-              {navLinks(MAIN_NAV, closeDrawer)}
-            </nav>
+            <div className="sidebar-scroll">
+              {MAIN_GROUPS.map((group) => renderGroup(group, closeDrawer))}
+            </div>
             <div className="sidebar-bottom">
-              <nav className="nav" aria-label="Account">
-                {navLinks(FOOTER_NAV, closeDrawer)}
-              </nav>
+              {FOOTER_GROUPS.map((group) => renderGroup(group, closeDrawer))}
+              <div className="sidebar-theme">
+                <ThemeSwitcher />
+              </div>
               <SignOutButton />
             </div>
           </div>
         </>
       ) : null}
+
+      <ZemoWidget userState="active-workspace" />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import type { IconName } from '@/components/icons';
 
 /**
- * Product areas, in sidebar order.
+ * Product areas, grouped the way someone thinks about their day rather than
+ * the way the routes happen to be laid out.
  *
  * This is the single source of truth for navigation: the sidebar, the mobile
  * drawer and the topbar breadcrumb all read from it, so a route can never be
@@ -13,24 +14,83 @@ export interface NavItem {
   icon: IconName;
   /** Short description used by the mobile drawer and the 404 page. */
   description: string;
-  /** Settings sits apart from the working areas, at the foot of the sidebar. */
+}
+
+export interface NavGroup {
+  /** Section heading in the sidebar. */
+  label: string;
+  items: readonly NavItem[];
+  /** Sits apart at the foot of the sidebar. */
   footer?: boolean;
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'grid', description: 'Workspace summary and next steps' },
-  { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call' },
-  { label: 'AI Agents', href: '/agents', icon: 'bot', description: 'Voice agents that represent you' },
-  { label: 'Campaigns', href: '/campaigns', icon: 'megaphone', description: 'Outbound calling runs' },
-  { label: 'Calls', href: '/calls', icon: 'phone', description: 'Call history and outcomes' },
-  { label: 'Follow-ups', href: '/follow-ups', icon: 'clock', description: 'What is queued after a call' },
-  { label: 'WhatsApp', href: '/whatsapp', icon: 'message', description: 'Message previews and delivery' },
-  { label: 'Analytics', href: '/analytics', icon: 'chart', description: 'Outreach performance' },
-  { label: 'Settings', href: '/settings', icon: 'settings', description: 'Workspace configuration', footer: true },
-] as const;
+export const NAV_GROUPS: readonly NavGroup[] = [
+  {
+    label: 'Workspace',
+    items: [
+      {
+        label: 'Overview',
+        href: '/dashboard',
+        icon: 'grid',
+        description: 'What happened, and what needs you',
+      },
+      { label: 'Leads', href: '/leads', icon: 'users', description: 'People AIBOT should call' },
+      { label: 'Agents', href: '/agents', icon: 'bot', description: 'The AI callers on your team' },
+      {
+        label: 'Campaigns',
+        href: '/campaigns',
+        icon: 'megaphone',
+        description: 'Turn a lead list into a workflow',
+      },
+    ],
+  },
+  {
+    label: 'Conversations',
+    items: [
+      { label: 'Calls', href: '/calls', icon: 'phone', description: 'Transcripts and outcomes' },
+      {
+        label: 'Follow-ups',
+        href: '/follow-ups',
+        icon: 'clock',
+        description: 'What is queued after a call',
+      },
+      {
+        label: 'WhatsApp',
+        href: '/whatsapp',
+        icon: 'message',
+        description: 'Messages, as they would arrive',
+      },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      {
+        label: 'Analytics',
+        href: '/analytics',
+        icon: 'chart',
+        description: 'Whether any of it is working',
+      },
+    ],
+  },
+  {
+    label: 'Setup',
+    footer: true,
+    items: [
+      {
+        label: 'Settings',
+        href: '/settings',
+        icon: 'settings',
+        description: 'Workspace configuration',
+      },
+    ],
+  },
+];
 
-export const MAIN_NAV = NAV_ITEMS.filter((item) => !item.footer);
-export const FOOTER_NAV = NAV_ITEMS.filter((item) => item.footer);
+export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+
+export const MAIN_GROUPS = NAV_GROUPS.filter((group) => !group.footer);
+export const FOOTER_GROUPS = NAV_GROUPS.filter((group) => group.footer);
 
 /**
  * Resolve the nav entry for a pathname. Matches nested routes (`/leads/123`)

@@ -150,6 +150,51 @@ const ICON_PATHS = {
       <circle cx="12" cy="12" r="1" />
     </>
   ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" />,
+  monitor: (
+    <>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </>
+  ),
+  send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" />,
+  sparkle: (
+    <path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z" />
+  ),
+  arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
+  arrowDown: <path d="M12 5v14M6 13l6 6 6-6" />,
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M3 12a9 9 0 0 1 15.3-6.4L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15.3 6.4L3 16" />
+      <path d="M3 21v-5h5" />
+    </>
+  ),
+  pause: (
+    <>
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M10 7V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    </>
+  ),
 } as const satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICON_PATHS;

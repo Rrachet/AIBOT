@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/icons';
+import { ThemeSwitcher } from '@/components/theme/theme-switcher';
 
 /**
  * Public site navigation.
@@ -72,6 +73,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="site-header-actions">
+          <ThemeSwitcher compact />
           <Link className="site-link" href="/login">
             Sign in
           </Link>
@@ -104,6 +106,10 @@ export function SiteHeader() {
           <Link className="primary-button" href="/signup">
             Start free
           </Link>
+          <div className="site-mobile-theme">
+            <span>Theme</span>
+            <ThemeSwitcher />
+          </div>
         </div>
       ) : null}
     </header>
