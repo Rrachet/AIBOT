@@ -87,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={item.href}
               className={isActive ? 'active' : undefined}
               aria-current={isActive ? 'page' : undefined}
+              data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               onClick={onNavigate}
             >
               <span className="nav-icon">
@@ -216,7 +217,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </>
       ) : null}
 
-      <ZemoWidget userState="active-workspace" />
+      {/* The workspace id scopes tour progress: the same person joining a
+          second workspace has not been shown that one yet. */}
+      <ZemoWidget userState="active-workspace" workspaceId={workspace?.workspaceId} />
     </div>
   );
 }

@@ -98,7 +98,9 @@ function Hero() {
           </p>
         </div>
 
-        <LeadJourney />
+        <div data-tour="hero-journey">
+          <LeadJourney />
+        </div>
       </div>
     </section>
   );
@@ -106,7 +108,7 @@ function Hero() {
 
 function Problem() {
   return (
-    <section className="section is-alt">
+    <section className="section is-alt" data-tour="problem">
       <div className="site-shell">
         <div className="section-head">
           <span className="section-eyebrow">The problem</span>
@@ -182,7 +184,7 @@ function Workflow() {
           </p>
         </div>
 
-        <div className="flow">
+        <div className="flow" data-tour="workflow">
           {nodes.map((node) => (
             <div key={node.step} className={`flow-node${node.human ? ' is-human' : ''}`}>
               <b>{node.step}</b>
@@ -209,7 +211,7 @@ function Showcase() {
           </p>
         </div>
 
-        <div className="showcase">
+        <div className="showcase" data-tour="showcase-config">
           <div className="showcase-copy">
             <h3>Tell AIBOT who to call, what to ask and what to do next.</h3>
             <p>
@@ -329,7 +331,7 @@ function Showcase() {
           </div>
         </div>
 
-        <div className="showcase">
+        <div className="showcase" data-tour="showcase-analytics">
           <div className="showcase-copy">
             <h3>Know what happened without listening to every call.</h3>
             <p>

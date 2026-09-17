@@ -84,7 +84,7 @@ export default function PricingPage() {
               </span>
             </p>
 
-            <div className="plan-grid">
+            <div className="plan-grid" data-tour="plan-grid">
               {PLANS.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} />
               ))}

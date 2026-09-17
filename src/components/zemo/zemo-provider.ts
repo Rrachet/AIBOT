@@ -1,5 +1,5 @@
 import { PLANS, PRICING_HONESTY, FAQ } from '@/content/plans';
-import { pageContextFor, type ZemoContext } from './zemo-context';
+import { pageContextFor, type ZemoContext, type ZemoPageContext } from './zemo-context';
 
 /**
  * Zemo's brain, behind an interface.
@@ -26,6 +26,8 @@ export interface ZemoMessage {
   navigate?: { label: string; href: string };
   /** Starts or advances the demo-request flow. */
   form?: 'demo-request';
+  /** Asks the widget to run the guided tour rather than describe it. */
+  startTour?: boolean;
 }
 
 export interface ZemoReply {
@@ -112,11 +114,12 @@ export class DemoZemoProvider implements ZemoProvider {
   private suggestionsFor(context: ZemoContext): string[] {
     const page = pageContextFor(context.route);
     if (context.surface === 'public') {
-      return ['What does AIBOT actually do?', 'Which plan fits me?', 'Book me a demo'];
+      return ['Show me around', 'What does AIBOT actually do?', 'Which plan fits me?'];
     }
-    const base = [`What is this page for?`];
-    if (page.glossary?.qualified) base.push('What does qualified mean?');
-    base.push('How do I run a campaign?');
+    const base = ['Show me around', 'What is this page for?'];
+    const concept = page.keyConcepts?.[0];
+    if (concept) base.push(`What is ${concept}?`);
+    else base.push('How do I run a campaign?');
     return base;
   }
 
@@ -128,7 +131,20 @@ export class DemoZemoProvider implements ZemoProvider {
     const text = norm(message);
     const page = pageContextFor(context.route);
 
-    // 1. Demo request. Checked first so "I want a demo" never falls through to
+    // 1. The tour. Checked before navigation, because "show me around" would
+    //    otherwise be read as a request to open a page.
+    if (
+      hasAny(text, ['tour', 'show me around', 'walk me through', 'guide me', 'show me the tour']) ||
+      /\b(show|walk|take) me (around|through)\b/.test(text)
+    ) {
+      return {
+        messages: [
+          zemoMessage("Come on then. I'll keep it to about a minute.", { startTour: true }),
+        ],
+      };
+    }
+
+    // 2. Demo request. Checked early so "I want a demo" never falls through to
     //    a glossary match on the word "call".
     if (hasAny(text, ['demo', 'talk to someone', 'contact me', 'sales', 'call me', 'get in touch'])) {
       return {
@@ -141,7 +157,7 @@ export class DemoZemoProvider implements ZemoProvider {
       };
     }
 
-    // 2. Navigation. Only offered, never performed.
+    // 3. Navigation. Only offered, never performed.
     if (hasAny(text, ['take me', 'go to', 'open', 'show me', 'navigate', 'where is', 'where do i'])) {
       const target = DESTINATIONS.find((destination) => hasAny(text, destination.words));
       if (target) {
@@ -164,12 +180,12 @@ export class DemoZemoProvider implements ZemoProvider {
       }
     }
 
-    // 3. Pricing.
+    // 4. Pricing.
     if (hasAny(text, ['price', 'pricing', 'cost', 'plan', 'how much', 'expensive', 'free'])) {
       return { messages: [this.pricingAnswer(text)] };
     }
 
-    // 4. Simulation honesty — asked directly, answered directly.
+    // 5. Simulation honesty — asked directly, answered directly.
     if (hasAny(text, ['real call', 'really call', 'actually call', 'simulated', 'fake', 'dial'])) {
       return {
         messages: [
@@ -181,7 +197,7 @@ export class DemoZemoProvider implements ZemoProvider {
       };
     }
 
-    // 5. Vocabulary from this page's glossary.
+    // 6. Vocabulary from this page's glossary.
     if (page.glossary) {
       const entry = Object.entries(page.glossary).find(([term]) => text.includes(norm(term)));
       if (entry) {
@@ -191,28 +207,34 @@ export class DemoZemoProvider implements ZemoProvider {
       }
     }
 
-    // 6. "What is this page?"
+    // 7. Page questions, answered why-first.
     if (hasAny(text, ['this page', 'what is this', 'where am i', 'what does this do', 'explain'])) {
-      return {
-        messages: [
-          zemoMessage(page.summary, { suggestions: this.suggestionsFor(context) }),
-        ],
-      };
+      return { messages: [this.explainPage(page, context)] };
     }
 
-    // 7. The FAQ, which is the same text the pricing page publishes.
+    // 8. Questions this page has been asked before.
+    if (page.commonQuestions) {
+      const hit = page.commonQuestions.find((entry) => overlaps(text, norm(entry.q)));
+      if (hit) {
+        return {
+          messages: [zemoMessage(hit.a, { suggestions: this.suggestionsFor(context) })],
+        };
+      }
+    }
+
+    // 9. The FAQ, which is the same text the pricing page publishes.
     const faq = FAQ.find((item) => overlaps(text, norm(item.q)));
     if (faq) {
       return { messages: [zemoMessage(faq.a, { suggestions: this.suggestionsFor(context) })] };
     }
 
-    // 8. Onboarding walkthroughs.
+    // 10. Onboarding walkthroughs.
     if (hasAny(text, ['how do i', 'how to', 'get started', 'first', 'set up', 'setup'])) {
       const answer = this.howTo(text);
       if (answer) return { messages: [answer] };
     }
 
-    // 9. Small talk, briefly, then back to work.
+    // 11. Small talk, briefly, then back to work.
     if (hasAny(text, ['who are you', 'what are you', 'your name', 'zemo'])) {
       return {
         messages: [
@@ -237,6 +259,26 @@ export class DemoZemoProvider implements ZemoProvider {
         ),
       ],
     };
+  }
+
+  /**
+   * Why, then what, then where it sits.
+   *
+   * The order is the whole point. "This page lists your calls" is a caption
+   * that teaches nobody anything; leading with the problem the page solves is
+   * what makes the rest of it stick.
+   */
+  private explainPage(page: ZemoPageContext, context: ZemoContext): ZemoMessage {
+    const parts: string[] = [];
+    if (page.analogy) parts.push(page.analogy);
+    parts.push(page.why ?? page.summary);
+    if (page.why) parts.push(page.summary);
+    if (page.connects?.to) parts.push(page.connects.to);
+
+    return zemoMessage(parts.join(' '), {
+      suggestions: this.suggestionsFor(context),
+      ...(context.surface === 'app' ? { navigate: undefined } : {}),
+    });
   }
 
   private pricingAnswer(text: string): ZemoMessage {

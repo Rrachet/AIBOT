@@ -1,7 +1,20 @@
 import type { ReactNode } from 'react';
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`card ${className}`.trim()}>{children}</div>;
+export function Card({
+  children,
+  className = '',
+  tourTarget,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** `data-tour` value, so the guided tour can point at this card. */
+  tourTarget?: string;
+}) {
+  return (
+    <div className={`card ${className}`.trim()} data-tour={tourTarget}>
+      {children}
+    </div>
+  );
 }
 
 /**

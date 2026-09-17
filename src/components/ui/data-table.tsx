@@ -18,13 +18,16 @@ export function DataTable({
   columns,
   caption,
   children,
+  tourTarget,
 }: {
   columns: readonly Column[];
   caption: string;
   children: ReactNode;
+  /** `data-tour` value, so the guided tour can point at this table. */
+  tourTarget?: string;
 }) {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll" data-tour={tourTarget}>
       <table className="table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>

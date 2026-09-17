@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { AppShell } from './app-shell';
+import type { ReactNode } from "react";
 
 export interface SectionPageProps {
   title: string;
@@ -11,25 +10,30 @@ export interface SectionPageProps {
 }
 
 /**
- * Standard product page layout: shell + page header + content.
+ * Standard product page layout: page header + content.
  *
- * The active navigation item is resolved from the route inside `AppShell`,
- * so pages never declare which nav entry they belong to.
+ * The shell around this — sidebar, topbar, Zemo — is the `(app)` layout, which
+ * is mounted once and survives navigation. This component is only the part
+ * that changes per page.
  */
-export function SectionPage({ title, eyebrow, subtitle, actions, children }: SectionPageProps) {
+export function SectionPage({
+  title,
+  eyebrow,
+  subtitle,
+  actions,
+  children,
+}: SectionPageProps) {
   return (
-    <AppShell>
-      <main className="content" id="main-content">
-        <div className="page-head">
-          <div>
-            {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
-            <h1 className="page-title">{title}</h1>
-            {subtitle ? <p className="subtitle">{subtitle}</p> : null}
-          </div>
-          {actions ? <div className="page-head-actions">{actions}</div> : null}
+    <main className="content" id="main-content">
+      <div className="page-head">
+        <div>
+          {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
+          <h1 className="page-title">{title}</h1>
+          {subtitle ? <p className="subtitle">{subtitle}</p> : null}
         </div>
-        <div className="section-stack">{children}</div>
-      </main>
-    </AppShell>
+        {actions ? <div className="page-head-actions">{actions}</div> : null}
+      </div>
+      <div className="section-stack">{children}</div>
+    </main>
   );
 }

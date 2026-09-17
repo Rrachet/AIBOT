@@ -3307,33 +3307,57 @@ a.quick-card:hover {
   transition: transform var(--dur-2) var(--ease);
 }
 
-/* Idle: a blink every few seconds, offset between the eyes by a hair so it
-   reads as a creature rather than a pair of shutters. */
+/*
+ * Blinking.
+ *
+ * One 13-second cycle with blinks at irregular points and a double blink near
+ * the end, so the rhythm never reads as a metronome. `--blink-delay` is a
+ * negative per-instance offset, which starts each Zemo at a different point in
+ * the same cycle — two of them on one page are never in step.
+ *
+ * Only `transform` animates, so this composites on the GPU, costs no layout
+ * and triggers no React render. The global reduced-motion rule stops it.
+ */
 @keyframes zemo-blink {
   0%,
-  92%,
+  13%,
+  15.4%,
+  36%,
+  38.2%,
+  61%,
+  63.4%,
+  88%,
+  90.2%,
+  93%,
+  95.2%,
   100% {
     transform: scaleY(1);
   }
-  95% {
-    transform: scaleY(0.12);
+  14.2%,
+  37.1%,
+  62.2%,
+  89.1%,
+  94.1% {
+    transform: scaleY(0.1);
   }
 }
 
-.zemo-avatar[data-mood='idle'] .zemo-eye {
-  animation: zemo-blink 5.5s var(--ease) infinite;
+.zemo-avatar[data-mood='idle'] .zemo-eye,
+.zemo-avatar[data-mood='talking'] .zemo-eye,
+.zemo-avatar[data-mood='curious'] .zemo-eye,
+.zemo-avatar[data-mood='helpful'] .zemo-eye {
+  animation: zemo-blink 13s linear infinite;
+  animation-delay: var(--blink-delay, 0s);
 }
 
-.zemo-avatar[data-mood='idle'] .zemo-eye-r {
-  animation-delay: 0.06s;
+/* The right eye lags by a few milliseconds, which is what stops a blink
+   looking like a shutter closing. */
+.zemo-avatar .zemo-eye-r {
+  animation-delay: calc(var(--blink-delay, 0s) + 0.035s);
 }
 
 /* Thinking: eyes narrow to dashes and drift, the way anyone looks when they
-   are working something out. */
-.zemo-avatar[data-mood='thinking'] .zemo-eye {
-  transform: scaleY(0.3);
-}
-
+   are working something out. No blinking — you do not blink mid-thought. */
 @keyframes zemo-ponder {
   0%,
   100% {
@@ -3350,12 +3374,72 @@ a.quick-card:hover {
 
 /* Talking: wide open, and the right eye sits a touch higher — one raised brow
    is the whole personality. */
-.zemo-avatar[data-mood='talking'] .zemo-eye-l {
-  transform: scaleY(1.1);
+.zemo-avatar[data-mood='talking'] .zemo-face {
+  transform: scaleY(1.08);
+  transform-origin: center;
 }
 
 .zemo-avatar[data-mood='talking'] .zemo-eye-r {
-  transform: scaleY(1.1) translateY(-1.2px);
+  y: 13.8;
+}
+
+/* Curious: one eye a little larger, head tilted. Used while Zemo waits for the
+   person to do something. */
+.zemo-avatar[data-mood='curious'] svg {
+  transform: rotate(-7deg);
+  transition: transform var(--dur-3) var(--ease);
+}
+
+.zemo-avatar[data-mood='curious'] .zemo-eye-l {
+  y: 13.5;
+  height: 11;
+}
+
+/* Pleased: happy arcs. The eyes become short bars pushed down, which reads as
+   a squint-smile at any size. */
+.zemo-avatar[data-mood='pleased'] .zemo-eye {
+  y: 18;
+  height: 3.4;
+  rx: 1.7;
+  animation: zemo-pleased var(--dur-3) var(--ease-out);
+}
+
+@keyframes zemo-pleased {
+  0% {
+    transform: translateY(2px) scaleX(0.7);
+  }
+  60% {
+    transform: translateY(-1px) scaleX(1.08);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Helpful: level and steady. Deliberately the least expressive face — it is
+   what Zemo wears after somebody gets something wrong, and a reaction there
+   would read as a comment on them. */
+.zemo-avatar[data-mood='helpful'] .zemo-eye {
+  y: 16;
+  height: 7;
+}
+
+/* Gaze. A couple of pixels is plenty: enough to read as looking at the thing
+   being highlighted, not enough to be unsettling. */
+.zemo-avatar[data-gaze='left'] .zemo-face {
+  transform: translateX(-1.8px);
+}
+
+.zemo-avatar[data-gaze='right'] .zemo-face {
+  transform: translateX(1.8px);
+}
+
+.zemo-avatar[data-gaze='down'] .zemo-face {
+  transform: translateY(1.6px);
+}
+
+.zemo-face {
+  transition: transform var(--dur-3) var(--ease);
 }
 
 /* Presence on the rim ------------------------------------------------------ */
@@ -3742,6 +3826,22 @@ a.quick-card:hover {
   color: var(--green);
 }
 
+/* Inside the application the left rim is the sidebar. Zemo clears it rather
+   than sitting on top of the navigation — which is the one place a floating
+   assistant must never be. Below the sidebar breakpoint there is no sidebar to
+   clear, and the mobile rules take over. */
+.app-shell .zemo-root.is-left {
+  left: calc(var(--sidebar-w) + 22px);
+}
+
+/* The sidebar becomes a drawer at 720px, so the offset has to stop there —
+   not at the 640px mobile breakpoint, which would leave 80px of overlap. */
+@media (max-width: 720px) {
+  .app-shell .zemo-root.is-left {
+    left: 22px;
+  }
+}
+
 /* An open panel never sits over centred content. Zemo slides to the rim to
    talk and drifts back to its anchor when the conversation closes — which is
    what the transition on `left`/`right` is there for. */
@@ -3760,7 +3860,8 @@ a.quick-card:hover {
   .zemo-root,
   .zemo-root.is-left,
   .zemo-root.is-center,
-  .zemo-root.is-right {
+  .zemo-root.is-right,
+  .app-shell .zemo-root.is-left {
     left: 12px;
     right: 12px;
     bottom: 12px;
@@ -5575,4 +5676,276 @@ a.quick-card:hover {
     grid-column: 2 / -1;
     margin-top: -4px;
   }
+}
+
+/* ==========================================================================
+   14. Guided tour
+   --------------------------------------------------------------------------
+   Four dimming panels around the target rather than one overlay with a hole,
+   so the highlighted control stays genuinely clickable — a step that asks
+   somebody to press a button has to let them press it.
+   ========================================================================== */
+
+.tour-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+}
+
+/* Light on purpose. The point is to draw the eye to one thing, not to black
+   out the product someone is trying to learn. */
+.tour-shade-panel {
+  position: fixed;
+  background: var(--scrim);
+  opacity: 0.55;
+  transition: all var(--dur-3) var(--ease);
+}
+
+.tour-ring {
+  position: fixed;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-lg);
+  transition: all var(--dur-3) var(--ease);
+  pointer-events: none;
+}
+
+/* While a step waits for a click, the ring breathes. Slow and shallow — an
+   insistent pulse reads as an error, not an invitation. */
+@keyframes tour-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-lg);
+  }
+  50% {
+    box-shadow: 0 0 0 9px var(--accent-soft), var(--shadow-lg);
+  }
+}
+
+.tour-ring.is-waiting {
+  animation: tour-breathe 2.1s var(--ease) infinite;
+}
+
+/* The card ----------------------------------------------------------------- */
+
+.tour-card {
+  width: min(372px, calc(100vw - 32px));
+  outline: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: zemo-arrive var(--dur-3) var(--ease-out) both;
+}
+
+.tour-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.tour-progress {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.tour-exit {
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 2px;
+  transition: color var(--dur-1) var(--ease);
+}
+
+.tour-exit:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.tour-card-body {
+  padding: 16px 16px 14px;
+}
+
+.tour-card.is-intro .tour-card-body {
+  padding-top: 20px;
+}
+
+.tour-card-body h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: var(--track-tight);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.tour-card.is-intro .tour-card-body h2 {
+  margin-top: 12px;
+  font-size: 20px;
+}
+
+.tour-card-body p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.tour-card-body p + p {
+  margin-top: 9px;
+}
+
+/* The line worth landing, set apart so it is not read as more body copy. */
+.tour-aside {
+  padding-left: 11px;
+  border-left: 2px solid var(--accent-line);
+  color: var(--text) !important;
+  font-weight: 500;
+}
+
+.tour-missed {
+  margin-top: 10px !important;
+  color: var(--amber) !important;
+  font-weight: 600;
+}
+
+.tour-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.tour-card-foot.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.tour-card-foot.is-stacked .primary-button {
+  justify-content: center;
+}
+
+.tour-done-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tour-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tour-back svg {
+  transform: rotate(180deg);
+}
+
+.tour-back:hover {
+  color: var(--text);
+}
+
+/* The Space hint, styled as the key it names. */
+.tour-key {
+  margin-left: 2px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.tour-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--accent-ink);
+}
+
+.tour-waiting-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: tour-breathe-dot 1.6s var(--ease) infinite;
+}
+
+@keyframes tour-breathe-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+
+.tour-footnote {
+  margin: 0;
+  padding: 0 14px 13px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted-2);
+  background: var(--surface-soft);
+}
+
+/* While Zemo is guiding, the launcher steps out of the way — the card is the
+   conversation, and two controls saying "Zemo" is one too many. */
+.zemo-root.is-guiding .zemo-launcher {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .tour-card {
+    width: 100%;
+  }
+
+  /* On a phone the card sits above the bottom edge rather than becoming a full
+     sheet: the highlighted element has to stay visible next to it. */
+  .zemo-root.is-guiding {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .tour-shade-panel {
+    opacity: 0.45;
+  }
+}
+
+.settings-note {
+  margin: 0 0 16px;
+  max-width: 560px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
 }
