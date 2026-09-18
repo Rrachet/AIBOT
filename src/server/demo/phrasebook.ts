@@ -1,5 +1,6 @@
 import type { CallObjective } from '@/domain/ai-config';
 import type { SpeechRegister } from '@/lib/speech/speech-types';
+import type { ScenarioKey } from './scenarios';
 
 /**
  * The words a demo call is made of, in each language it can be held in.
@@ -46,6 +47,24 @@ export interface NonBookingClose {
   /** Tail of the agent's last line, after the thanks. */
   wrapUp: string;
 }
+
+/** One turn of a chosen scenario: who says it, and what. */
+export type ScriptedTurn = readonly ['Lead' | 'Agent', Template];
+
+/**
+ * The scenarios a salesperson picks by hand rather than a campaign deals.
+ *
+ * Written out turn by turn instead of assembled from variants, because a
+ * demonstration should be the same every time it is shown. Somebody rehearsing
+ * "let's try the price objection" needs it to say what it said yesterday.
+ *
+ * Each block opens on the lead — the objection — and closes on the agent, so it
+ * slots straight onto the shared opening without two speakers stacking up.
+ */
+export type ScenarioScripts = Record<
+  Extract<ScenarioKey, 'DISCOVERY' | 'HAS_AGENCY' | 'SEND_DETAILS' | 'TOO_EXPENSIVE'>,
+  readonly ScriptedTurn[]
+>;
 
 export interface Phrasebook {
   /** The agent's stated reason for calling, spliced into every greeting. */
@@ -105,6 +124,16 @@ export interface Phrasebook {
   declineYes: string;
   /** `{name}` */
   declineDone: Template;
+
+  /**
+   * The hand-picked scenarios.
+   *
+   * Deliberately industry-neutral. What the business actually sells arrives
+   * from the agent's own configuration and is spoken in the opening pitch; if
+   * these lines named an industry they would be wrong for every customer but
+   * one, and the transcript would contradict the pitch two turns above it.
+   */
+  scenarios: ScenarioScripts;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -211,6 +240,41 @@ const ENGLISH: Phrasebook = {
   declineAck: 'Understood, and thank you for telling me. Would you like me to take you off this list?',
   declineYes: 'Yes please.',
   declineDone: "Done — you won't hear from us again. Have a good day, {name}.",
+
+  scenarios: {
+    DISCOVERY: [
+      ['Lead', 'We handle some of it ourselves, but honestly it is not consistent.'],
+      ['Agent', 'That is the part most teams find hardest — keeping it steady rather than producing things in bursts. It is what we are built around.'],
+      ['Lead', 'And how would that actually work for us?'],
+      ['Agent', 'Let me put together a short plan from what you have told me and walk you through it. Would that be useful?'],
+      ['Lead', 'Yes, that would help.'],
+      ['Agent', 'Good. Thanks {name}, I will send that across and follow up.'],
+    ],
+    HAS_AGENCY: [
+      ['Lead', 'We already work with an agency.'],
+      ['Agent', 'Got it. And are you happy with what they are doing at the moment?'],
+      ['Lead', 'Mostly. It is just not very consistent — some months are good, some go quiet.'],
+      ['Agent', 'Right. That is the part we focus on, keeping it steady rather than working in bursts. I am not asking you to change anything today.'],
+      ['Lead', 'What would you suggest, then?'],
+      ['Agent', 'Let me send you what we would do differently, so you can hold it up against what you already have. Thanks {name}.'],
+    ],
+    SEND_DETAILS: [
+      ['Lead', 'Could you just send me something to look at?'],
+      ['Agent', 'Of course. So I send the right thing rather than everything — what would be most useful to see first?'],
+      ['Lead', 'Mainly what it would cost, and how quickly you could start.'],
+      ['Agent', 'Understood, I will send exactly that. Is WhatsApp alright, or would you rather have it by email?'],
+      ['Lead', 'WhatsApp is fine.'],
+      ['Agent', 'Done. Thanks {name} — I will send it now and check back once you have had a look.'],
+    ],
+    TOO_EXPENSIVE: [
+      ['Lead', 'Honestly, that sounds expensive.'],
+      ['Agent', 'That is fair. Can I ask what you are weighing it against — a budget you have already set, or what you are getting for it today?'],
+      ['Lead', 'A bit of both. I am not sure what I would actually get back from it.'],
+      ['Agent', 'Then let me show you what it would have to produce to be worth doing, using your numbers rather than mine. If it does not add up, it does not add up.'],
+      ['Lead', 'Alright, send that across.'],
+      ['Agent', 'I will. Thanks {name} — no discount and no pressure, just the arithmetic.'],
+    ],
+  },
 };
 
 /* -------------------------------------------------------------------------- */
@@ -317,6 +381,41 @@ const HINDI: Phrasebook = {
   declineAck: 'समझ गई, बताने के लिए धन्यवाद। क्या मैं आपका नाम इस सूची से हटा दूँ?',
   declineYes: 'जी हाँ, हटा दीजिए।',
   declineDone: 'हो गया — अब हमारी तरफ़ से कॉल नहीं आएगी। आपका दिन शुभ हो, {name} जी।',
+
+  scenarios: {
+    DISCOVERY: [
+      ['Lead', 'कुछ काम हम खुद कर लेते हैं, पर सच कहूँ तो उसमें निरंतरता नहीं है।'],
+      ['Agent', 'यही हिस्सा ज़्यादातर टीमों को सबसे मुश्किल लगता है — रुक-रुक कर करने के बजाय लगातार बनाए रखना। हम इसी पर काम करते हैं।'],
+      ['Lead', 'और हमारे लिए यह काम कैसे करेगा?'],
+      ['Agent', 'आपने जो बताया उसके आधार पर मैं एक छोटी योजना बनाकर आपको समझा देती हूँ। क्या वह ठीक रहेगा?'],
+      ['Lead', 'जी हाँ, उससे मदद मिलेगी।'],
+      ['Agent', 'बढ़िया। धन्यवाद {name} जी, मैं वह भेजकर आगे बात करती हूँ।'],
+    ],
+    HAS_AGENCY: [
+      ['Lead', 'हम पहले से एक एजेंसी के साथ काम कर रहे हैं।'],
+      ['Agent', 'समझ गई। और अभी वे जो कर रहे हैं, उससे आप संतुष्ट हैं?'],
+      ['Lead', 'ज़्यादातर तो ठीक है। बस निरंतरता नहीं है — कुछ महीने अच्छे जाते हैं, कुछ खाली।'],
+      ['Agent', 'सही कहा। हम उसी पर ध्यान देते हैं, रुक-रुक कर नहीं बल्कि लगातार। मैं आज आपसे कुछ बदलने को नहीं कह रही।'],
+      ['Lead', 'तो आप क्या सुझाएँगी?'],
+      ['Agent', 'मैं भेज देती हूँ कि हम क्या अलग करेंगे, आप उसे अपनी मौजूदा व्यवस्था से मिलाकर देख लीजिए। धन्यवाद {name} जी।'],
+    ],
+    SEND_DETAILS: [
+      ['Lead', 'आप मुझे देखने के लिए कुछ भेज दीजिए।'],
+      ['Agent', 'ज़रूर। सब कुछ भेजने के बजाय सही चीज़ भेजूँ — सबसे पहले आप क्या देखना चाहेंगे?'],
+      ['Lead', 'मुख्य रूप से यह कि खर्च कितना आएगा और कितनी जल्दी शुरू हो सकता है।'],
+      ['Agent', 'समझ गई, वही भेजती हूँ। व्हाट्सएप ठीक रहेगा या ईमेल पर भेजूँ?'],
+      ['Lead', 'व्हाट्सएप ठीक है।'],
+      ['Agent', 'ठीक है। धन्यवाद {name} जी — मैं अभी भेजती हूँ और आपके देखने के बाद बात करती हूँ।'],
+    ],
+    TOO_EXPENSIVE: [
+      ['Lead', 'सच कहूँ तो यह महँगा लग रहा है।'],
+      ['Agent', 'यह जायज़ है। एक बात पूछ सकती हूँ — आप इसे किससे तौल रहे हैं, पहले से तय बजट से या आज जो मिल रहा है उससे?'],
+      ['Lead', 'थोड़ा दोनों से। मुझे यह साफ़ नहीं है कि बदले में क्या मिलेगा।'],
+      ['Agent', 'तो मैं आपको दिखा देती हूँ कि इसे सार्थक होने के लिए क्या देना पड़ेगा, मेरे नहीं आपके ही आँकड़ों पर। अगर हिसाब नहीं बैठता, तो नहीं बैठता।'],
+      ['Lead', 'ठीक है, भेज दीजिए।'],
+      ['Agent', 'भेजती हूँ। धन्यवाद {name} जी — कोई छूट नहीं, कोई दबाव नहीं, बस हिसाब।'],
+    ],
+  },
 };
 
 /* -------------------------------------------------------------------------- */
@@ -423,6 +522,41 @@ const HINGLISH: Phrasebook = {
   declineAck: 'Samajh gayi, batane ke liye thank you. Main aapka naam is list se hata doon?',
   declineYes: 'Haan ji, hata dijiye.',
   declineDone: 'Ho gaya — ab hamari taraf se call nahi aayegi. Aapka din accha ho, {name}.',
+
+  scenarios: {
+    DISCOVERY: [
+      ['Lead', 'Kuch kaam hum khud kar lete hain, par honestly usmein consistency nahi hai.'],
+      ['Agent', 'Yahi part zyada tar teams ko sabse mushkil lagta hai — burst mein karne ke bajay steady rakhna. Hum isi par kaam karte hain.'],
+      ['Lead', 'Aur hamare liye ye actually kaise kaam karega?'],
+      ['Agent', 'Aapne jo bataya uske basis par main ek chota plan bana kar samjha deti hoon. Theek rahega?'],
+      ['Lead', 'Haan ji, usse help milegi.'],
+      ['Agent', 'Badhiya. Thanks {name}, main wo bhej kar follow up karti hoon.'],
+    ],
+    HAS_AGENCY: [
+      ['Lead', 'Hum already ek agency ke saath kaam kar rahe hain.'],
+      ['Agent', 'Got it. Aur abhi wo jo kar rahe hain, usse aap happy hain?'],
+      ['Lead', 'Zyada tar theek hai. Bas consistency nahi hai — kuch months acche jaate hain, kuch khaali.'],
+      ['Agent', 'Sahi kaha. Hum usi par focus karte hain, burst mein nahi balki steady. Main aaj aapko kuch change karne ko nahi keh rahi.'],
+      ['Lead', 'To aap kya suggest karengi?'],
+      ['Agent', 'Main bhej deti hoon ki hum kya alag karenge, aap use apni current setup se compare kar lijiye. Thanks {name}.'],
+    ],
+    SEND_DETAILS: [
+      ['Lead', 'Aap mujhe dekhne ke liye kuch bhej dijiye.'],
+      ['Agent', 'Zaroor. Sab kuch bhejne ke bajay sahi cheez bhejoon — sabse pehle aap kya dekhna chahenge?'],
+      ['Lead', 'Mainly ye ki cost kitni aayegi aur kitni jaldi start ho sakta hai.'],
+      ['Agent', 'Samajh gayi, wahi bhejti hoon. WhatsApp theek rahega ya email par bhejoon?'],
+      ['Lead', 'WhatsApp theek hai.'],
+      ['Agent', 'Done. Thanks {name} — main abhi bhejti hoon aur aapke dekhne ke baad check karti hoon.'],
+    ],
+    TOO_EXPENSIVE: [
+      ['Lead', 'Honestly, ye expensive lag raha hai.'],
+      ['Agent', 'Ye fair hai. Ek baat pooch sakti hoon — aap ise kis se tol rahe hain, pehle se set budget se ya aaj jo mil raha hai usse?'],
+      ['Lead', 'Thoda dono se. Mujhe clear nahi hai ki badle mein kya milega.'],
+      ['Agent', 'To main aapko dikha deti hoon ki ise worth hone ke liye kya dena padega, mere nahi aapke hi numbers par. Agar hisaab nahi baithta, to nahi baithta.'],
+      ['Lead', 'Theek hai, bhej dijiye.'],
+      ['Agent', 'Bhejti hoon. Thanks {name} — koi discount nahi, koi pressure nahi, bas arithmetic.'],
+    ],
+  },
 };
 
 const BOOKS: Record<SpeechRegister, Phrasebook> = {

@@ -69,11 +69,24 @@ export function VoicePreview({
   transcript,
   register,
   onActiveTurn,
+  onPhase,
+  showTranscript = false,
 }: {
   transcript: string | null;
   register: SpeechRegister;
-  /** Lets the transcript beside this highlight the line being spoken. */
-  onActiveTurn: (id: string | null) => void;
+  /** Lets a transcript rendered elsewhere highlight the line being spoken. */
+  onActiveTurn?: (id: string | null) => void;
+  /** Announces playback state to whatever is interested. */
+  onPhase?: (phase: ConversationPhase) => void;
+  /**
+   * Render the conversation inside the panel.
+   *
+   * True where there is no transcript on screen already — the scenario studio,
+   * which plays a conversation that was never stored anywhere. False in the
+   * test call result, where the stored transcript is right below and rendering
+   * a second copy of it would be absurd.
+   */
+  showTranscript?: boolean;
 }) {
   const conversation = useVoiceConversation({ transcript, register });
   const { phase, activeIndex, turns } = conversation;
@@ -81,14 +94,18 @@ export function VoicePreview({
   const active = activeIndex >= 0 ? turns[activeIndex] : undefined;
   const reported = phase === 'idle' || phase === 'complete' ? null : (active?.id ?? null);
 
-  // Told, not read: the transcript is rendered by a sibling, and announcing the
-  // line from here is what keeps the two in step without either owning the
+  // Told, not read: the transcript may be rendered by a sibling, and announcing
+  // the line from here is what keeps the two in step without either owning the
   // other. Reported after the commit, never during render.
   useEffect(() => {
-    onActiveTurn(reported);
+    onActiveTurn?.(reported);
   }, [reported, onActiveTurn]);
 
-  useEffect(() => () => onActiveTurn(null), [onActiveTurn]);
+  useEffect(() => () => onActiveTurn?.(null), [onActiveTurn]);
+
+  useEffect(() => {
+    onPhase?.(phase);
+  }, [phase, onPhase]);
 
   if (turns.length === 0) return null;
 
@@ -106,6 +123,31 @@ export function VoicePreview({
       ) : (
         <Playing conversation={conversation} active={active} />
       )}
+
+      {showTranscript ? (
+        <div className="transcript in-dialog voice-transcript">
+          {turns.map((turn) => {
+            const isAgent = turn.speaker === 'AGENT';
+            const speaking = reported === turn.id;
+            return (
+              <div
+                key={turn.id}
+                className={`transcript-line ${isAgent ? 'is-agent' : 'is-lead'}${
+                  speaking ? ' is-speaking' : ''
+                }`}
+              >
+                <span className="transcript-speaker">{isAgent ? 'Agent' : 'Lead'}</span>
+                <span className="transcript-text">{turn.text}</span>
+                {speaking && isAgent ? (
+                  <span className="transcript-speaking" aria-label="Speaking now">
+                    <span className="voice-dot" aria-hidden="true" />
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
   );
 }

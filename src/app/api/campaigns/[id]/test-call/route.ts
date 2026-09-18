@@ -7,6 +7,8 @@ import { DemoAIProvider } from '@/server/ai/demo-ai'
 import { buildCallContext } from '@/server/demo/call-context'
 import { capabilitiesFor } from '@/server/capabilities'
 import { SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types'
+import { PREVIEW_SCENARIOS } from '@/domain/voice-scenarios'
+import { scenarioByKey, scenarioFor } from '@/server/demo/scenarios'
 import type { AgentContext, LeadContext } from '@/server/demo/transcript'
 
 /**
@@ -66,6 +68,11 @@ const bodySchema = z.object({
    * already sent.
    */
   language: z.enum(SPEECH_REGISTERS).optional(),
+  /**
+   * Which conversation to hold. Absent keeps the rotation a test call has
+   * always used, so every existing caller gets exactly what it got before.
+   */
+  scenario: z.enum(PREVIEW_SCENARIOS).optional(),
 })
 
 const idSchema = z.string().uuid()
@@ -111,12 +118,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   // a Hindi call and silently received an English one would have no way of
   // knowing, and "it did something else instead" is a worse answer than "no".
   const register: SpeechRegister = parsed.data.language ?? 'ENGLISH'
-  if (register !== 'ENGLISH' && !capabilitiesFor(auth.workspaceId).liveVoicePreview) {
+  const chosenScenario = parsed.data.scenario ?? null
+  const wantsDemoOptions = register !== 'ENGLISH' || chosenScenario !== null
+
+  if (wantsDemoOptions && !capabilitiesFor(auth.workspaceId).liveVoicePreview) {
     return Response.json(
       {
         error: {
           code: 'CAPABILITY_REQUIRED',
-          message: 'This workspace cannot run test calls in another language.',
+          message: 'This workspace cannot choose the language or scenario of a test call.',
         },
       },
       { status: 403 }
@@ -185,12 +195,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       .eq('id', newest.id)
       .single()
 
-    // A different language is a different intention, not a double click, so it
-    // is run rather than answered with the call before it.
-    const sameLanguage =
-      ((recent?.metadata as Record<string, unknown> | null)?.language ?? 'ENGLISH') === register
+    // A different language or scenario is a different intention, not a double
+    // click, so it is run rather than answered with the call before it.
+    const previous = recent?.metadata as Record<string, unknown> | null
+    const sameRequest =
+      (previous?.language ?? 'ENGLISH') === register &&
+      (chosenScenario === null || previous?.scenario === chosenScenario)
 
-    if (recent && sameLanguage) {
+    if (recent && sameRequest) {
       return Response.json({
         data: {
           call: recent,
@@ -206,7 +218,19 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   // Seeded on the campaign rather than the stand-in lead, so two campaigns
   // tested with the same name produce different conversations.
-  const simulated = voice.simulate(id, prior.length, 1, agent, lead, callContext, register)
+  // A chosen scenario replaces the rotation for this one call. Nothing about
+  // the rotation itself moves, so a campaign run still deals exactly the mix it
+  // dealt before.
+  const simulated = voice.simulate(
+    id,
+    prior.length,
+    1,
+    agent,
+    lead,
+    callContext,
+    register,
+    chosenScenario ? scenarioByKey(chosenScenario) : scenarioFor(prior.length, 1)
+  )
 
   const analysis = await new DemoAIProvider(simulated.scenario).analyzeCall({
     transcript: simulated.transcript,
@@ -245,6 +269,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           contact_name: parsed.data.name,
           next_action: analysis.nextAction,
           scenario: simulated.scenario.key,
+          // True only when the user picked it, so a stored call still says
+          // whether its conversation was dealt or chosen.
+          scenario_chosen: chosenScenario !== null,
           // Which language the conversation above was written in. Read back by
           // the preview so it asks for the right voice; a Hindi transcript read
           // by an English voice would be nobody's idea of a demo.

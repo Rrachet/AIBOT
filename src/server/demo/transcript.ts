@@ -1,7 +1,13 @@
 import type { CallObjective } from '@/domain/ai-config'
 import type { SpeechRegister } from '@/lib/speech/speech-types'
 import { isForbidden, type CallContext } from './call-context'
-import { fill, GREETINGS, phrasebook, type Phrasebook } from './phrasebook'
+import {
+  fill,
+  GREETINGS,
+  phrasebook,
+  type Phrasebook,
+  type ScenarioScripts,
+} from './phrasebook'
 import { pickInRange, seedFrom, type Scenario } from './scenarios'
 
 /**
@@ -215,6 +221,21 @@ function qualifying(
   ]
 }
 
+/**
+ * Scenarios where the lead interrupts before any qualifying can happen.
+ *
+ * An objection lands on the pitch, not on the third qualifying question — and a
+ * prospect who has just agreed that the questions are reasonable does not then
+ * say "we already have an agency". The dealt scenarios are deliberately not in
+ * this set: their shape is the one that shipped, and changing it would change
+ * every campaign transcript already on screen.
+ */
+const INTERRUPTS: ReadonlySet<Scenario['key']> = new Set([
+  'HAS_AGENCY',
+  'SEND_DETAILS',
+  'TOO_EXPENSIVE',
+])
+
 /** Opening turns, shared by every answered scenario. */
 function opening(
   agent: AgentContext,
@@ -222,7 +243,8 @@ function opening(
   leadId: string,
   context: CallContext | null,
   book: Phrasebook,
-  register: SpeechRegister
+  register: SpeechRegister,
+  qualify: boolean
 ): string[] {
   const forbidden = context?.mustNotSay ?? []
 
@@ -255,7 +277,7 @@ function opening(
     line('Agent', greet),
     line('Lead', ack),
     ...(pitch ? [line('Agent', `${pitch} ${ask}`)] : []),
-    ...qualifying(agent, leadId, context, book),
+    ...(qualify ? qualifying(agent, leadId, context, book) : []),
   ]
 }
 
@@ -393,6 +415,39 @@ const CLOSINGS: Record<Scenario['key'], Closing> = {
     }
   },
   NO_ANSWER: () => ({ lines: [], facts: {} }),
+
+  // The hand-picked scenarios. Their turns are written out in the phrasebook
+  // rather than assembled from variants, so a rehearsed demonstration says the
+  // same thing every time it is shown.
+  DISCOVERY: scripted('DISCOVERY'),
+  HAS_AGENCY: scripted('HAS_AGENCY'),
+  SEND_DETAILS: scripted('SEND_DETAILS'),
+  TOO_EXPENSIVE: scripted('TOO_EXPENSIVE'),
+}
+
+/**
+ * What a chosen scenario leaves the business to do.
+ *
+ * English in every language, like every other fact: it is written for whoever
+ * reads the call afterwards, not said on the call.
+ */
+const SCRIPTED_NEXT_ACTION: Record<keyof ScenarioScripts, string> = {
+  DISCOVERY: 'Send the short plan discussed on the call and follow up on it.',
+  HAS_AGENCY:
+    'Send a written comparison against their current agency, then follow up without pressing.',
+  SEND_DETAILS: 'Send costs and timelines on WhatsApp, then check back once they have read it.',
+  TOO_EXPENSIVE:
+    'Build the value case from their own numbers and send it. Do not offer a discount.',
+}
+
+/** Renders one of the written-out scenarios. */
+function scripted(key: keyof ScenarioScripts): Closing {
+  return (_agent, lead, _leadId, _context, book) => ({
+    facts: { objectiveNextAction: SCRIPTED_NEXT_ACTION[key] },
+    lines: book.scenarios[key].map(([speaker, template]) =>
+      line(speaker, fill(template, { name: firstName(lead, book) }))
+    ),
+  })
 }
 
 /**
@@ -417,8 +472,12 @@ export function buildTranscript(
   if (!scenario.answered) return { text: null, facts: {} }
   const book = phrasebook(register)
   const closing = CLOSINGS[scenario.key](agent, lead, leadId, context, book)
+  const qualify = !INTERRUPTS.has(scenario.key)
   return {
-    text: [...opening(agent, lead, leadId, context, book, register), ...closing.lines].join('\n'),
+    text: [
+      ...opening(agent, lead, leadId, context, book, register, qualify),
+      ...closing.lines,
+    ].join('\n'),
     facts: closing.facts,
   }
 }

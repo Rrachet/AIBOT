@@ -4,6 +4,7 @@ import { ApiError, asBoolean, asNumber, asString, isRecord, request } from '@/li
 import { toCallDetail } from '@/lib/calls'
 import { CAMPAIGN_STATUS_DISPLAY } from '@/lib/status'
 import { SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types'
+import { isPreviewScenario, type PreviewScenario } from '@/domain/voice-scenarios'
 
 /** Client-side boundary for `/api/campaigns`. */
 
@@ -213,7 +214,12 @@ export interface TestCallResult {
  */
 export async function runTestCall(
   campaignId: string,
-  contact: { name: string; phone: string; language?: SpeechRegister }
+  contact: {
+    name: string
+    phone: string
+    language?: SpeechRegister
+    scenario?: PreviewScenario
+  }
 ): Promise<TestCallResult> {
   const data = await request(`/api/campaigns/${campaignId}/test-call`, {
     method: 'POST',
@@ -242,6 +248,61 @@ export async function runTestCall(
 
 function isRegister(value: string | null): value is SpeechRegister {
   return value !== null && (SPEECH_REGISTERS as readonly string[]).includes(value)
+}
+
+/**
+ * A conversation to listen to, generated on demand.
+ *
+ * Nothing is recorded by asking for one — see the route. Switching scenario in
+ * front of a client costs a render and leaves no trace in their workspace.
+ */
+export interface VoicePreviewConversation {
+  scenario: PreviewScenario
+  language: SpeechRegister
+  transcript: string | null
+  outcome: string | null
+  summary: string | null
+  nextAction: string | null
+  durationSeconds: number
+  contactName: string
+}
+
+export async function fetchVoicePreview(
+  campaignId: string,
+  options: { scenario: PreviewScenario; language: SpeechRegister },
+  signal?: AbortSignal
+): Promise<VoicePreviewConversation> {
+  const query = new URLSearchParams({
+    scenario: options.scenario,
+    language: options.language,
+  })
+
+  const data = await request(`/api/campaigns/${campaignId}/voice-preview?${query}`, {
+    method: 'GET',
+    signal,
+    fallback: 'That conversation could not be prepared. Please try again.',
+  })
+
+  if (!isRecord(data)) {
+    throw new ApiError('The conversation could not be read back.', { status: 200 })
+  }
+
+  const scenario = asString(data.scenario)
+  const language = asString(data.language)
+  const contact = isRecord(data.contact) ? asString(data.contact.name) : null
+
+  return {
+    // The server's answer decides, not the request: if the two ever disagreed,
+    // the voice would be reading one conversation while the label named another.
+    scenario: isPreviewScenario(scenario) ? scenario : options.scenario,
+    language: isRegister(language) ? language : options.language,
+    transcript: asString(data.transcript),
+    outcome: asString(data.outcome),
+    summary: asString(data.summary),
+    nextAction: asString(data.nextAction),
+    durationSeconds: asNumber(data.durationSeconds) ?? 0,
+    contactName: contact ?? 'the prospect',
+  }
 }
 
 export async function createCampaign(input: CampaignInput): Promise<Campaign> {

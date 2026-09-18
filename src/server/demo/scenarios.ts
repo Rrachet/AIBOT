@@ -27,7 +27,31 @@ import type { CallOutcome, CallStatus, LeadStatus } from '@/domain/types'
  *    while still including every outcome the pipeline has to handle.
  */
 
-export type ScenarioKey = 'INTERESTED' | 'NO_ANSWER' | 'FOLLOW_UP' | 'NOT_INTERESTED'
+/**
+ * The shapes a demo conversation can take.
+ *
+ * The first four are what a campaign deals from: they are the outcomes the
+ * pipeline has to handle, and the pattern below is built from them alone.
+ *
+ * The rest are chosen deliberately rather than dealt. They exist so a
+ * salesperson can sit with a prospect and say "let's try the objection you keep
+ * hearing" — so they are the objections a real agent meets, not extra outcomes.
+ * Nothing picks them at random and nothing adds them to the pattern, so a
+ * campaign run produces exactly the mix it produced before.
+ */
+export type ScenarioKey =
+  | 'INTERESTED'
+  | 'NO_ANSWER'
+  | 'FOLLOW_UP'
+  | 'NOT_INTERESTED'
+  /** A straightforward enquiry: discovery, one relevant capability, a next step. */
+  | 'DISCOVERY'
+  /** "We already work with an agency." Answered by asking, never by attacking. */
+  | 'HAS_AGENCY'
+  /** "Send me something to look at." */
+  | 'SEND_DETAILS'
+  /** "That sounds expensive." Answered by finding out what the concern actually is. */
+  | 'TOO_EXPENSIVE'
 
 export interface Scenario {
   key: ScenarioKey
@@ -73,6 +97,40 @@ export const SCENARIOS: readonly Scenario[] = [
     leadStatus: 'NOT_INTERESTED',
     durationRange: [25, 60],
   },
+  {
+    key: 'DISCOVERY',
+    answered: true,
+    callStatus: 'COMPLETED',
+    outcome: 'QUALIFIED',
+    leadStatus: 'QUALIFIED',
+    durationRange: [110, 200],
+  },
+  {
+    // Interested enough to talk, already served — so the next step is a
+    // comparison rather than a booking.
+    key: 'HAS_AGENCY',
+    answered: true,
+    callStatus: 'COMPLETED',
+    outcome: 'FOLLOW_UP',
+    leadStatus: 'FOLLOW_UP',
+    durationRange: [85, 165],
+  },
+  {
+    key: 'SEND_DETAILS',
+    answered: true,
+    callStatus: 'COMPLETED',
+    outcome: 'FOLLOW_UP',
+    leadStatus: 'FOLLOW_UP',
+    durationRange: [50, 105],
+  },
+  {
+    key: 'TOO_EXPENSIVE',
+    answered: true,
+    callStatus: 'COMPLETED',
+    outcome: 'FOLLOW_UP',
+    leadStatus: 'FOLLOW_UP',
+    durationRange: [70, 140],
+  },
 ]
 
 /**
@@ -90,12 +148,22 @@ export function seedFrom(value: string): number {
 
 const BY_KEY = new Map(SCENARIOS.map((scenario) => [scenario.key, scenario]))
 
+/** A scenario by name, for the one place that chooses rather than deals. */
+export function scenarioByKey(key: ScenarioKey): Scenario {
+  return BY_KEY.get(key)!
+}
+
 /**
  * The order scenarios are dealt in, repeating every eight leads:
  * three qualified, two follow-ups, two unanswered, one refusal.
  *
  * Front-loaded so that even a five-lead demo shows a qualified lead first and
  * still covers all four outcomes.
+ *
+ * Only the four campaign outcomes appear here. The objection scenarios are
+ * chosen by hand in the voice preview and must never be dealt into a campaign
+ * run, or the numbers a business is shown would change because a demo feature
+ * was added.
  */
 const PATTERN: readonly ScenarioKey[] = [
   'INTERESTED',

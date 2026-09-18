@@ -6180,74 +6180,6 @@ a.quick-card:hover {
   line-height: 1.5;
 }
 
-/* Language, chosen before the call runs ------------------------------------ */
-
-.voice-language {
-  margin: 16px 0 0;
-  padding: 14px 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-soft);
-}
-
-.voice-language legend {
-  padding: 0 6px;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted-2);
-}
-
-.voice-language-options {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.voice-language-option {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.voice-language-option input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.voice-language-option:hover {
-  border-color: var(--border-strong);
-}
-
-.voice-language-option.is-selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-
-/* Keyboard focus has to be visible on the label, because the input it wraps
-   is the thing that receives focus and the thing that cannot be seen. */
-.voice-language-option:focus-within {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 2px;
-}
-
-.voice-language-hint {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
 /* The transcript, in step with the voice ----------------------------------- */
 
 .transcript-line.is-speaking {
@@ -6293,10 +6225,195 @@ a.quick-card:hover {
     justify-content: center;
     min-width: 96px;
   }
+}
 
-  .voice-language-option {
+/* ==========================================================================
+   16. Scenario studio
+   --------------------------------------------------------------------------
+   Pick an objection, pick a language, press play.
+
+   The chips are deliberately quiet — small, borderless until chosen — because
+   the conversation underneath them is what anyone in the room is meant to be
+   looking at. They get two seconds of attention at the start and none after.
+   ========================================================================== */
+
+.scenario-studio {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.studio-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.studio-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.studio-group legend {
+  padding: 0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.studio-lead {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.studio-group legend + .studio-options {
+  margin-top: 10px;
+}
+
+.studio-options {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.studio-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 13px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--tint);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.studio-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.studio-chip:hover {
+  background: var(--tint-strong);
+  color: var(--text);
+}
+
+.studio-chip.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* The label is what is seen; the radio inside it is what takes focus. */
+.studio-chip:focus-within {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.studio-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.studio-loading {
+  margin: 0;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.studio-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.studio-conversation .voice-preview {
+  margin-top: 0;
+}
+
+/* The transcript inside the panel, rather than beside it. */
+.voice-transcript {
+  margin-top: 2px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+  max-height: 260px;
+}
+
+.studio-outcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.studio-outcome-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.studio-next {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.studio-next svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--accent-ink);
+}
+
+/* Said once, quietly, under the thing it is about. */
+.studio-footnote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .studio-chips {
+    padding: 12px 12px 14px;
+  }
+
+  .studio-chip {
     flex: 1;
     justify-content: center;
-    min-width: 92px;
+    min-width: 104px;
+  }
+
+  .voice-transcript {
+    max-height: 220px;
   }
 }

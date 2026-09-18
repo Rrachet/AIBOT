@@ -14,7 +14,9 @@ import { CALL_OUTCOME_DISPLAY, formatDuration } from '@/lib/status';
 import type { CallOutcome } from '@/domain/types';
 import { useCapabilities } from '@/components/workspace-context';
 import { readTranscript } from '@/lib/speech/speech-script';
-import { SPEECH_REGISTER_LABEL, SPEECH_REGISTERS, type SpeechRegister } from '@/lib/speech/speech-types';
+import { type SpeechRegister } from '@/lib/speech/speech-types';
+import { DEFAULT_PREVIEW_SCENARIO, type PreviewScenario } from '@/domain/voice-scenarios';
+import { ScenarioStudio } from './scenario-studio';
 import { VoicePreview } from './voice-preview';
 
 /**
@@ -54,6 +56,7 @@ export function TestCallDialog({
   const [phone, setPhone] = useState('');
   const [result, setResult] = useState<TestCallResult | null>(null);
   const [language, setLanguage] = useState<SpeechRegister>('ENGLISH');
+  const [scenario, setScenario] = useState<PreviewScenario>(DEFAULT_PREVIEW_SCENARIO);
   const [activeTurn, setActiveTurn] = useState<string | null>(null);
   const { liveVoicePreview } = useCapabilities();
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +106,11 @@ export function TestCallDialog({
         // Only ever sent by a workspace that has the capability. The server
         // checks it again regardless, because a control the browser can see is
         // not a permission.
-        ...(liveVoicePreview && language !== 'ENGLISH' ? { language } : {}),
+        // Sent only by a workspace that has the capability, and checked again
+        // on the server regardless — a control the browser can see is not a
+        // permission. The same two choices drive the preview above, so the call
+        // holds the conversation the demonstration just played.
+        ...(liveVoicePreview ? { language, scenario } : {}),
       });
       const elapsed = Date.now() - startedAt;
       timers.current.push(
@@ -123,7 +130,7 @@ export function TestCallDialog({
       );
       setStage('setup');
     }
-  }, [campaign.id, name, phone, language, liveVoicePreview, clearTimers]);
+  }, [campaign.id, name, phone, language, scenario, liveVoicePreview, clearTimers]);
 
   const close = useCallback(() => {
     clearTimers();
@@ -201,30 +208,13 @@ export function TestCallDialog({
             </div>
 
             {liveVoicePreview ? (
-              <fieldset className="voice-language">
-                <legend>Hold the call in</legend>
-                <div className="voice-language-options">
-                  {SPEECH_REGISTERS.map((option) => (
-                    <label
-                      key={option}
-                      className={`voice-language-option${language === option ? ' is-selected' : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="test-call-language"
-                        value={option}
-                        checked={language === option}
-                        onChange={() => setLanguage(option)}
-                      />
-                      <span>{SPEECH_REGISTER_LABEL[option]}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="voice-language-hint">
-                  The conversation is written in the language you pick, so the transcript and the
-                  voice always say the same thing.
-                </p>
-              </fieldset>
+              <ScenarioStudio
+                campaignId={campaign.id}
+                scenario={scenario}
+                language={language}
+                onScenario={setScenario}
+                onLanguage={setLanguage}
+              />
             ) : null}
           </>
         ) : null}

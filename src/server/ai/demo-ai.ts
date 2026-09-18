@@ -59,6 +59,32 @@ const SUMMARY: Record<ScenarioKey, (input: AnalyzeCallInput) => CallAnalysis> = 
     summary: `${firstName(input.lead.name)} did not answer. No conversation took place.`,
     nextAction: 'Retry later, or send a WhatsApp message instead.',
   }),
+
+  // The hand-picked scenarios. Their next action is decided by the transcript
+  // that produced them and arrives on `facts`, so what is summarised here can
+  // never contradict what was agreed on the call.
+  DISCOVERY: (input) => ({
+    outcome: 'QUALIFIED',
+    summary: `${firstName(input.lead.name)} talked through how they run this today and agreed a short plan would be useful.`,
+    nextAction: input.facts.objectiveNextAction ?? 'Send the plan discussed and follow up.',
+  }),
+  HAS_AGENCY: (input) => ({
+    outcome: 'FOLLOW_UP',
+    summary: `${firstName(input.lead.name)} already works with an agency and is mostly happy, but said the work is inconsistent.`,
+    nextAction:
+      input.facts.objectiveNextAction ?? 'Send a comparison against their current agency.',
+  }),
+  SEND_DETAILS: (input) => ({
+    outcome: 'FOLLOW_UP',
+    summary: `${firstName(input.lead.name)} asked for costs and timelines in writing, on WhatsApp.`,
+    nextAction: input.facts.objectiveNextAction ?? 'Send costs and timelines, then check back.',
+  }),
+  TOO_EXPENSIVE: (input) => ({
+    outcome: 'FOLLOW_UP',
+    summary: `${firstName(input.lead.name)} thinks it is expensive and is unsure of the return. No discount was offered.`,
+    nextAction:
+      input.facts.objectiveNextAction ?? 'Send the value case built from their own numbers.',
+  }),
 }
 
 export class DemoAIProvider implements AIProvider {

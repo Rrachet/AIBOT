@@ -85,9 +85,17 @@ export class DemoVoiceProvider implements VoiceProvider {
     agent: AgentContext,
     lead: LeadContext,
     context: CallContext | null = null,
-    register: SpeechRegister = 'ENGLISH'
+    register: SpeechRegister = 'ENGLISH',
+    /**
+     * The conversation to hold, when the caller has chosen one.
+     *
+     * Only the voice preview does. A campaign run passes nothing and gets the
+     * rotation, which is what keeps the mix a business sees unchanged by a demo
+     * feature existing.
+     */
+    chosen?: Scenario
   ): SimulatedCall {
-    const scenario = scenarioFor(index, attempt)
+    const scenario = chosen ?? scenarioFor(index, attempt)
     const transcript = buildTranscript(scenario, agent, lead, leadId, context, register)
     return {
       providerCallId: demoCallId(leadId, attempt),

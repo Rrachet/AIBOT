@@ -35,6 +35,9 @@ of either kind is a new file and nothing else.
 | `src/server/speech/speech-provider.ts`   | The contract and the resolver. Server-only.                  |
 | `src/server/speech/demo-speech.ts`       | The provider that plans speech and produces no audio.        |
 | `src/server/demo/phrasebook.ts`          | The words a demo call is made of, in each language.          |
+| `src/domain/voice-scenarios.ts`          | The six conversations a salesperson can choose to show.      |
+| `src/app/api/campaigns/[id]/voice-preview/route.ts` | Generates one to listen to. Writes nothing.       |
+| `src/app/(app)/campaigns/components/scenario-studio.tsx` | The chips, and the conversation under them.  |
 | `src/components/speech/use-voice-conversation.ts` | Turn-by-turn choreography: who speaks, who is shown. |
 | `src/app/(app)/campaigns/components/voice-preview.tsx` | The Hear AI Live panel in the test call dialog. |
 
@@ -100,7 +103,38 @@ preview was played. `SpeechVoiceChoice.match` is what stops that claim:
 Every choice carries a `note` written to be shown to a person as-is. Any UI built
 on this must show the note whenever `match` is not `exact`.
 
-## 5. Hear AI Live
+## 5. Scenarios
+
+Six, chosen rather than dealt:
+
+| Chip | Key | What the agent demonstrates |
+| ---- | --- | --------------------------- |
+| Normal enquiry | `DISCOVERY` | Finds out how they work today, proposes a next step. |
+| Interested | `INTERESTED` | Qualifies a keen buyer and agrees a time. |
+| Already have an agency | `HAS_AGENCY` | Asks whether they are happy. Never attacks the incumbent. |
+| Not interested | `NOT_INTERESTED` | Takes no for an answer, first time. |
+| Send me details | `SEND_DETAILS` | Finds out what to send before sending anything. |
+| Too expensive | `TOO_EXPENSIVE` | Works out what the objection is. Offers no discount, invents no price. |
+
+Those behaviours are asserted, not assumed: the language suite checks that the
+agency objection contains "are you happy" and no comparison against the
+incumbent, that the price objection contains no percentage, no currency and no
+discount, and that a refusal is accepted without a second attempt.
+
+**The four new keys are never dealt.** `PATTERN` in `scenarios.ts` — what a
+campaign run deals from — still holds only the original four, so the mix a
+business sees is exactly the mix it saw before this feature existed. A test
+compares 3,024 transcripts built both ways and 120 scenario deals to keep it
+so.
+
+The wording for each lives in the phrasebook alongside everything else, written
+out turn by turn rather than assembled from variants: a rehearsed demonstration
+should say what it said yesterday. It is deliberately industry-neutral — what
+the business actually sells arrives from the agent's own configuration and is
+spoken in the opening pitch, so lines that named an industry would contradict
+the pitch two turns above them.
+
+## 6. Hear AI Live
 
 The preview in the test call dialog reads back the transcript that was stored.
 It creates nothing and changes nothing: no second call, no lead status, no
@@ -117,11 +151,34 @@ Playback starts only from a press of **Hear AI Live**. Nothing speaks because a
 page loaded or a dialog opened.
 
 It is gated on `liveVoicePreview`. A workspace without it sees the dialog it saw
-before, and a request that asks for another language anyway is refused with
-`CAPABILITY_REQUIRED` — the check is on the server, against the workspace
-`requireAuth` resolved from the session.
+before, and a request that asks for another language, another scenario, or the
+preview endpoint itself is refused with `CAPABILITY_REQUIRED` — the check is on
+the server, against the workspace `requireAuth` resolved from the session.
 
-## 6. Automated verification
+`src/components/speech/voice-preview-state.ts` publishes the current scenario,
+language and playback state on a `CustomEvent` for Zemo to use in a later step.
+Nothing is persisted and nothing leaves the page: the payload is a scenario key,
+a language and three booleans.
+
+### Changing a scenario writes nothing
+
+`GET /api/campaigns/[id]/voice-preview?scenario=…&language=…` runs the campaign's
+real configuration through the same generator a test call uses and returns the
+conversation. It creates no call, no lead, no membership, no follow-up and no
+activity, and moves no figure — a salesperson can flick through all six in front
+of a client and leave the workspace exactly as it was. A suite plays all
+eighteen scenario-and-language combinations and then compares a full snapshot of
+calls, leads, follow-ups, campaign membership, activity and analytics against
+the one taken before.
+
+It is deterministic: the seed is `voice-preview:<campaign>:<scenario>:<language>`
+and nothing else, so the same choice always produces the same conversation, and
+Replay plays the one on screen rather than fetching another.
+
+Pressing **Start test call** afterwards runs the same chosen conversation for
+real and records it, which is the one path that does write.
+
+## 7. Automated verification
 
 Two suites, both run against the project's own compiled source.
 
@@ -135,19 +192,35 @@ stubbed speech engine. 30 checks covering exact matches, every fallback rung,
 late-arriving voices, the full state machine, cancel, pause, resume, two
 overlapping requests, disposal, chunking, and each error code.
 
-**Languages** — 15 checks that a language change alters the words and nothing
-else: same turn order, same facts, Devanagari only in Hindi, Hinglish never
-transliterated, the user's own words untouched, and every language defining
-every phrase.
+**Languages and scenarios** — 23 checks that a language change alters the words
+and nothing else: same turn order, same facts, Devanagari only in Hindi,
+Hinglish never transliterated, the user's own words untouched, every language
+defining every phrase, every chosen scenario building in every language with
+turns that alternate and end on the agent, and the four behavioural claims
+above.
 
-**The preview, in the real application** — 32 checks against a stubbed engine
-installed before React mounts: the capability gate both ways, nothing spoken
-before the press, transcript synchronisation, pause, resume, stop, replay saying
-the same words and creating no call, a double press not doubling the voice,
-closing the dialog stopping the speech, each language reaching the right voice
-with every spoken word visible on screen, an unanswered call offering nothing to
-play, and a graceful failure with the transcript intact. Plus 64 layout checks
-at 375, 390, 414 and 1280 in both themes.
+**The scenario studio, in the real application** — 18 checks against a stubbed
+engine installed before React mounts: all eighteen scenario-and-language
+combinations played end to end with the spoken words matched against the screen
+and the prospect never voiced, a full workspace snapshot unchanged afterwards,
+replay identical, pause, resume, stop, a double press not doubling the voice,
+switching scenario mid-sentence stopping the speech, closing the dialog stopping
+the speech, the state published for Zemo carrying nothing private, a missing
+voice reported rather than hidden, and a chosen scenario reaching the call that
+is actually run.
+
+**The stored test call** — 11 more checks that the other half still works: the
+preview offered on a completed call, nothing spoken before the press, the stored
+transcript marking the turn being played, every agent line spoken and no
+prospect line, replay identical and creating no call.
+
+**Capability gating** — 8 checks with the capability off: no preview, no chips,
+the transcript intact, and `CAPABILITY_REQUIRED` from the test call for a
+language, from the test call for a scenario, and from the preview endpoint
+itself; a spoofed `x-workspace-id` gets `WORKSPACE_FORBIDDEN`, never the
+capability.
+
+**Layout** — 96 checks at 375, 390, 414 and 1280 in both themes.
 
 The engine is stubbed because the real one cannot answer these questions here:
 **headless Chromium exposes `speechSynthesis` and reports zero voices**, so it
@@ -155,7 +228,7 @@ produces no audio and no voice metadata. The one thing the real engine can be
 asked is what it does when it has nothing to speak with, and that is checked
 directly (it refuses at the first utterance, and is reported as `NO_VOICE`).
 
-## 7. What still needs a person
+## 8. What still needs a person
 
 Audio cannot be heard in CI, so these are checked by hand in a real browser on a
 machine that has Indian voices installed.
@@ -182,17 +255,19 @@ Live**.
 | 8 | On a machine with no Hindi voice, the fallback note is shown and true.  |
 | 9 | The prospect's turns are audibly silent while their text is on screen.  |
 | 10 | Replay sounds identical to the first play.                            |
+| 11 | Each of the six scenarios sounds like the objection it names.          |
+| 12 | Switching scenario mid-sentence stops the voice immediately.           |
 
 Nothing in this document should be read as a claim that audio has been heard in
 CI. It has not.
 
-## 8. Cost
+## 9. Cost
 
 None. The demo provider contacts nothing: no telephony, no speech service, no
 model. The voices are the ones already installed on the viewer's own machine,
 and no text leaves the browser to be synthesised.
 
-## 9. Capability
+## 10. Capability
 
 The preview is gated on the `liveVoicePreview` workspace capability
 (`src/domain/capabilities.ts`, resolved in `src/server/capabilities.ts` from
