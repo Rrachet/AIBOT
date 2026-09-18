@@ -43,26 +43,35 @@ class MockSpeechRecognition {
       ],
       item: () => ({ isFinal, [0]: { transcript, confidence: 1 } }),
       length: 1,
-    };
+    } as any;
     this.onresult(event);
   }
 
   fireError(error: string): void {
     if (!this.onerror) return;
-    const event = { error };
+    const event = { error } as any;
     this.onerror(event);
   }
 }
 
+let mockInstance: MockSpeechRecognition | null = null;
+
 describe('SpeechRecognizer', () => {
   beforeEach(() => {
-    (window as any).SpeechRecognition = MockSpeechRecognition;
+    mockInstance = null;
+    (window as any).SpeechRecognition = class extends MockSpeechRecognition {
+      constructor() {
+        super();
+        mockInstance = this;
+      }
+    };
     (window as any).webkitSpeechRecognition = undefined;
   });
 
   afterEach(() => {
     delete (window as any).SpeechRecognition;
     delete (window as any).webkitSpeechRecognition;
+    mockInstance = null;
   });
 
   describe('isSupported()', () => {
@@ -159,7 +168,7 @@ describe('SpeechRecognizer', () => {
       recognizer.start();
       recognizer.abort();
 
-      expect(events).toContain('abort');
+      expect(events).toContain('end');
       expect(recognizer.isActive()).toBe(false);
     });
   });
@@ -167,38 +176,36 @@ describe('SpeechRecognizer', () => {
   describe('recognition events', () => {
     it('should emit interim results', () => {
       const recognizer = new SpeechRecognizer({ interimResults: true });
-      let lastResult: any = null;
+      const results: any[] = [];
 
       recognizer.addEventListener((type, result) => {
-        if (type === 'result') lastResult = result;
+        if (type === 'result') results.push(result);
       });
 
       recognizer.start();
-      const mock = (window as any).SpeechRecognition;
-      mock.prototype = new MockSpeechRecognition();
-      // Since we can't easily get the instance, we'll test through the class
+      if (mockInstance) {
+        mockInstance.fireResult('hello', false);
+      }
 
-      expect(lastResult === null || lastResult.interimTranscript !== undefined).toBe(true);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0]?.interimTranscript).toBe('hello');
     });
 
-    it('should emit final results', (done) => {
+    it('should emit final results', () => {
       const recognizer = new SpeechRecognizer();
-      let results: any[] = [];
+      const results: any[] = [];
 
       recognizer.addEventListener((type, result) => {
-        if (type === 'result') {
-          results.push(result);
-        }
+        if (type === 'result') results.push(result);
       });
 
       recognizer.start();
+      if (mockInstance) {
+        mockInstance.fireResult('hello world', true);
+      }
 
-      // Get the mock instance
-      const MockClass = (window as any).SpeechRecognition;
-      const instances = Object.keys(MockClass.prototype || {});
-
-      // Test happens through manual event firing in integration tests
-      done();
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0]?.finalTranscript).toBe('hello world');
     });
 
     it('should prevent duplicate final transcripts', () => {
@@ -212,9 +219,13 @@ describe('SpeechRecognizer', () => {
       });
 
       recognizer.start();
+      if (mockInstance) {
+        mockInstance.fireResult('test', true);
+        mockInstance.fireResult('test', true);
+      }
 
-      // Duplicate results with same transcript should only emit once
-      expect(results.length).toBeGreaterThanOrEqual(0);
+      expect(results.length).toBe(1);
+      expect(results[0]).toBe('test');
     });
   });
 
@@ -228,36 +239,44 @@ describe('SpeechRecognizer', () => {
       });
 
       recognizer.start();
-      // Trigger error through mock interface
-      // This is tested through hook integration tests for accuracy
+      if (mockInstance) {
+        mockInstance.fireError('not-allowed');
+      }
 
-      expect(lastError === null || lastError.error).toBeDefined();
+      expect(lastError).toBeDefined();
+      expect(lastError.error).toBe('not-allowed');
     });
 
     it('should handle no-speech error', () => {
       const recognizer = new SpeechRecognizer();
-      const events: RecognitionEventType[] = [];
+      let hasError = false;
 
       recognizer.addEventListener((type) => {
-        events.push(type);
+        if (type === 'error') hasError = true;
       });
 
       recognizer.start();
+      if (mockInstance) {
+        mockInstance.fireError('no-speech');
+      }
 
-      expect(events.includes('error') || events.includes('end')).toBe(true);
+      expect(hasError).toBe(true);
     });
 
     it('should handle network error', () => {
       const recognizer = new SpeechRecognizer();
-      const events: RecognitionEventType[] = [];
+      let lastError: any = null;
 
-      recognizer.addEventListener((type) => {
-        events.push(type);
+      recognizer.addEventListener((type, result) => {
+        if (type === 'error') lastError = result;
       });
 
       recognizer.start();
+      if (mockInstance) {
+        mockInstance.fireError('network');
+      }
 
-      expect(typeof recognizer).toBe('object');
+      expect(lastError.error).toBe('network');
     });
   });
 
