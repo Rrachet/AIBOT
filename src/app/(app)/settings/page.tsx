@@ -3,14 +3,18 @@ import { SectionPage } from '@/components/section-page';
 import { Card, CardHeader } from '@/components/ui/card';
 import { requireUser } from '@/lib/auth/require-user';
 import { WorkspaceForm } from './components/workspace-form';
+import { BusinessContactForm } from './components/business-contact-form';
 import { TourRestart } from './components/tour-restart';
 
 export const metadata: Metadata = { title: 'Settings' };
 
 /**
- * Only the Workspace section is exposed. Team, AI, Calling, WhatsApp and
- * Integrations are added here as each one is actually implemented — an empty
- * settings tab is worse than no tab.
+ * Workspace, business contact, help and what is still missing. Team, AI,
+ * Calling and Integrations are added here as each one is actually implemented
+ * — an empty settings tab is worse than no tab.
+ *
+ * Business contact is configuration and nothing more: no provider is connected
+ * by filling it in, and the section says so.
  */
 export default async function SettingsPage() {
   await requireUser('/settings');
@@ -21,6 +25,16 @@ export default async function SettingsPage() {
         <CardHeader title="Workspace" subtitle="Basic information for your AIBOT account" />
         <div className="card-body">
           <WorkspaceForm />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Business contact"
+          subtitle="Who the calls come from, once a provider is connected"
+        />
+        <div className="card-body">
+          <BusinessContactForm />
         </div>
       </Card>
 
