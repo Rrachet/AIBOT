@@ -80,8 +80,18 @@ function primary(tag: string | null | undefined): string {
 }
 
 /**
- * Nothing at all. Kept as a named value because "no voice" is a state the UI
- * has to render, not an error to swallow.
+ * The browser named no voices at all.
+ *
+ * Kept as a named value because it is a state the UI has to render, not an
+ * error to swallow — and the wording matters. An empty voice list does not mean
+ * the browser cannot speak: Chromium on Linux, talking to speech-dispatcher,
+ * reads text aloud perfectly well while reporting nothing from `getVoices()`.
+ * Saying "nothing can be read aloud" there would be a claim contradicted by the
+ * sound coming out of the speakers.
+ *
+ * What is actually true in that case is narrower, and is what this says: the
+ * voice cannot be identified, so an Indian one cannot be promised. When the
+ * browser really cannot speak, the run fails and `NO_VOICE` says so instead.
  */
 export function noVoice(requested: SpeechLanguage): SpeechVoiceChoice {
   return {
@@ -90,7 +100,9 @@ export function noVoice(requested: SpeechLanguage): SpeechVoiceChoice {
     lang: null,
     requested,
     match: 'none',
-    note: 'This browser reports no speech voices, so nothing can be read aloud here.',
+    note:
+      'This browser does not say which voices it has, so AIBOT cannot tell you which one ' +
+      'you are hearing or promise it is Indian.',
   };
 }
 
@@ -110,6 +122,11 @@ function describe(voice: SpeechSynthesisVoice, requested: SpeechLanguage): Speec
   }
 
   if (primary(has) === primary(wanted)) {
+    // Deliberately does not say "this browser has no X voice". It often does:
+    // a voice tagged `hi` is a Hindi voice, it simply is not tagged `hi-IN`,
+    // and a sentence claiming otherwise is contradicted by the voice's own
+    // name. What is actually known is that the locale differs, so that is what
+    // is said.
     return {
       voiceURI: voice.voiceURI,
       name: voice.name,
@@ -117,8 +134,9 @@ function describe(voice: SpeechSynthesisVoice, requested: SpeechLanguage): Speec
       requested,
       match: 'language',
       note:
-        `This browser has no ${SPEECH_LANGUAGE_LABEL[requested]} voice, so ${voice.name} ` +
-        `(${voice.lang}) will read it instead. The accent will not be Indian.`,
+        `Using ${voice.name} (${voice.lang}) — the closest this browser has to ` +
+        `${SPEECH_LANGUAGE_LABEL[requested]} (${requested}). It may not sound the way an ` +
+        `Indian caller would.`,
     };
   }
 

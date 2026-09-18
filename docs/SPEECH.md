@@ -228,38 +228,103 @@ produces no audio and no voice metadata. The one thing the real engine can be
 asked is what it does when it has nothing to speak with, and that is checked
 directly (it refuses at the first utterance, and is reported as `NO_VOICE`).
 
-## 8. What still needs a person
+## 8. Real-browser verification
 
-Audio cannot be heard in CI, so these are checked by hand in a real browser on a
-machine that has Indian voices installed.
+Done on 18 September 2026, on the Linux development machine, with **recorded
+audio**: Chromium's own `speechSynthesis`, no stub, output routed to a
+PulseAudio null sink whose monitor was recorded and measured. "It spoke" is a
+measurement here, not a claim.
 
-Check what the machine has from the developer console on any page of the app:
+| Check | Result |
+| ----- | ------ |
+| English spoken aloud | 51.7s recorded, RMS 4458, 62% of windows voiced |
+| Hindi spoken aloud | 61.8s recorded, RMS 4649, 57% voiced |
+| Hinglish spoken aloud | 56.8s recorded, RMS 4760, 61% voiced |
+| Replay identical | 51.73s then 51.77s, RMS 4458 then 4457 |
+| Scenario changes the call | 51.73s vs 51.26s for a different scenario |
+| Stop silences the browser | speech, then RMS **0** for the two seconds after Stop |
+| Console errors | none |
+
+### What this machine actually has
+
+Chromium reported **13,362 voices**, all from espeak-ng by way of
+speech-dispatcher. Relevant to AIBOT:
+
+- **`hi` — "Hindi espeak-ng"**, and around a hundred variants of it. Hindi, but
+  tagged with no region.
+- **No `en-IN` at all.** The closest is `en-US` / `en-GB`.
+
+So both languages fall back, and the interface says so — which is the behaviour
+this feature was built around:
+
+> Using Hindi espeak-ng (hi) — the closest this browser has to Hindi (hi-IN).
+> It may not sound the way an Indian caller would.
+
+> Using English (America) espeak-ng (en-US) — the closest this browser has to
+> Indian English (en-IN). It may not sound the way an Indian caller would.
+
+### Two things the real browser caught
+
+Both were wording that only a real engine could expose, and both are fixed:
+
+1. **Chromium on Linux speaks while reporting no voices.** On a cold page
+   `getVoices()` returns an empty array and only fills in once the
+   speech-dispatcher connection has been used — yet `speak()` works and audio
+   comes out. The old note read *"This browser reports no speech voices, so
+   nothing can be read aloud here"*, which the speakers contradict. It now says
+   only what is known: the browser does not name its voices, so an Indian one
+   cannot be promised.
+
+2. **A voice tagged `hi` is a Hindi voice.** The same-language note read *"This
+   browser has no Hindi voice"* over a voice named "Hindi espeak-ng". It no
+   longer asserts an absence it cannot know; it names what is being used and
+   what is uncertain about it.
+
+### Running it again on Linux
+
+Two things are needed, neither of them by default:
+
+```sh
+apt-get install -y speech-dispatcher espeak-ng pulseaudio pulseaudio-utils
+# speechd.conf: AudioOutputMethod "pulse", AddModule "espeak-ng", DefaultModule espeak-ng
+```
+
+```sh
+chromium --enable-speech-dispatcher     # off by default; without it, speak()
+                                        # fails with `synthesis-failed`
+```
+
+And if driving it with Playwright, drop `--mute-audio` from the default
+arguments — it is passed automatically, and every audio check will otherwise
+pass on silence.
+
+**macOS and Windows need none of this.** They ship Indian English and Hindi
+voices, so the fallback notes above should not appear at all there — which is
+the one thing this machine cannot verify.
+
+### Still unverified anywhere
+
+Whether the speech is *pleasant*. espeak-ng is a formant synthesiser: it is
+intelligible and unmistakably robotic. Nothing here establishes that a real
+prospect would enjoy listening to it on a Mac, and the manual list below is
+still worth a pass on a machine with proper Indian voices.
+
+| # | Check |
+| - | ----- |
+| 1 | An `en-IN` voice is present, and an English line sounds Indian. |
+| 2 | An `hi-IN` voice is present, and a Devanagari line is read as Hindi. |
+| 3 | A Hinglish line read by the `en-IN` voice is intelligible. |
+| 4 | Pause stops mid-sentence; resume continues from the same place. |
+| 5 | Pressing play twice quickly plays the second request only. |
+| 6 | Navigating away mid-sentence stops the speech. |
+| 7 | Each of the six scenarios sounds like the objection it names. |
+| 8 | The voice is good enough to put in front of a paying client. |
+
+Check what a machine has from the developer console on any page of the app:
 
 ```js
 speechSynthesis.getVoices().map((v) => `${v.name} ${v.lang}`).filter((v) => /-IN$/i.test(v));
 ```
-
-Then run the rest through the preview: open a campaign in a workspace with the
-capability, press **Test call**, pick a language, run it, and press **Hear AI
-Live**.
-
-| # | Check                                                                   |
-| - | ----------------------------------------------------------------------- |
-| 1 | An `en-IN` voice is present, and an English line sounds Indian.         |
-| 2 | An `hi-IN` voice is present, and a Devanagari line is read as Hindi.    |
-| 3 | A Hinglish line read by the `en-IN` voice is intelligible.              |
-| 4 | Pause stops mid-sentence; resume continues from the same place.         |
-| 5 | Cancel stops immediately and leaves nothing queued.                     |
-| 6 | Pressing play twice quickly plays the second request only.              |
-| 7 | Navigating away mid-sentence stops the speech.                          |
-| 8 | On a machine with no Hindi voice, the fallback note is shown and true.  |
-| 9 | The prospect's turns are audibly silent while their text is on screen.  |
-| 10 | Replay sounds identical to the first play.                            |
-| 11 | Each of the six scenarios sounds like the objection it names.          |
-| 12 | Switching scenario mid-sentence stops the voice immediately.           |
-
-Nothing in this document should be read as a claim that audio has been heard in
-CI. It has not.
 
 ## 9. Cost
 
