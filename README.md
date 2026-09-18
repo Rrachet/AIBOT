@@ -1,255 +1,267 @@
 # AIBOT
 
-AI-powered lead calling and WhatsApp follow-up platform.
+### AI-powered lead conversations, follow-ups and sales workflow
 
-## Product direction
+**AIBOT turns a lead list into a structured conversation workflow — from lead intake to AI conversation, outcome, follow-up, WhatsApp and analytics.**
 
-AIBOT starts with a deliberately manual MVP:
+[![Live App](https://img.shields.io/badge/Live%20App-AIBOT-FF6A00?style=flat-square)](https://aibot-amar-proj.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-151515?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-151515?style=flat-square&logo=supabase)](https://supabase.com)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-151515?style=flat-square&logo=vercel)](https://vercel.com)
 
-`Manual / CSV / Excel lead -> lead queue -> AI phone call -> call outcome -> WhatsApp follow-up`
+---
 
-Future lead sources (Meta Lead Ads, website forms, CRMs) will enter the same normalized lead pipeline.
+## What AIBOT does
 
-## Architecture principles
+AIBOT is built around one continuous workflow:
 
-- Multi-tenant by workspace from day one.
-- Provider-agnostic voice, messaging, and AI integrations.
-- Domain logic is separated from provider adapters and UI.
-- Calls and follow-ups are represented as durable records/events, not UI state.
-- No fake successful calls or messages when an external provider is unavailable.
-- V1 exposes only the functionality needed for manual lead operations.
+```text
+LEAD → AGENT → CAMPAIGN → CONVERSATION
+                         ↓
+                    OUTCOME
+                         ↓
+              FOLLOW-UP → WHATSAPP
+                         ↓
+                    ANALYTICS
+```
 
-## Authentication
+The goal is simple:
 
-AIBOT uses Supabase Auth through `@supabase/ssr`. The session lives in cookies
-and is refreshed by `src/proxy.ts`; no token is ever written to `localStorage`.
+> **Make repetitive lead conversations operationally manageable without turning the product into a black box.**
 
-One way in, one kind of account:
+---
 
-- **Sign up** — name, workspace name, email, password, confirm password, then a
-  confirmation link emailed to that address.
-- **Sign in** — email and password only. A confirmed account never sees the
-  confirmation step again.
+## ✨ Product
 
-There is no social sign-in and no code to type. Supabase owns confirmation end
-to end: AIBOT never generates, stores or compares a token.
+### Lead management
+- Manual lead creation
+- CSV / Excel import
+- Workspace-scoped lead data
+- Lead status and activity tracking
 
-### Registration flow
+### AI agents
+Configure how an agent represents the business, including its objective, script, product knowledge and conversation behaviour.
 
-1. `/login` posts the signup form to `signup` in `src/app/login/actions.ts`,
-   which calls `supabase.auth.signUp()` with `full_name` and `workspace_name`
-   in `options.data`, and `options.emailRedirectTo` pointing at
-   `/auth/callback`.
-2. With email confirmation on, `signUp()` returns **no session**. The action
-   redirects to `/login?message=check_email`.
-3. The emailed link goes to Supabase, which verifies the address and then sends
-   the browser to `/auth/callback?code=...`.
-4. `src/app/auth/callback/route.ts` calls
-   `supabase.auth.exchangeCodeForSession(code)`. That exchange is what
-   establishes the session, so an unconfirmed address can never reach the app.
-5. The user lands on `/` (or a validated `next` path — see `safeNextPath` in
-   `src/lib/auth/redirect.ts`).
+### Campaigns
+Connect leads to an agent and a campaign objective, then run the conversation workflow.
 
-Without `emailRedirectTo` the link would land on the dashboard with an
-unexchanged code in the URL and bounce straight back to `/login`. The origin
-comes from `NEXT_PUBLIC_SITE_URL` when set, and otherwise from the request, so
-localhost and preview deployments work with no configuration.
+### Conversation intelligence
+Calls produce durable records including:
+- transcript
+- outcome
+- summary
+- next action
+- follow-up information
 
-### One canonical origin
+### Follow-ups + WhatsApp
+Conversation outcomes feed the follow-up workflow and WhatsApp experience.
 
-A Vercel project answers on several `.vercel.app` hostnames at once. Left
-alone, the origin above is whichever one the visitor happened to use, so the
-emailed link points back at that hostname — and every hostname then has to be
-on Supabase's allow-list or the link breaks.
+### Analytics
+Understand movement through the funnel rather than treating calls as isolated events.
 
-Setting `NEXT_PUBLIC_SITE_URL` to the canonical origin resolves that in one
-place. It fixes the address in the confirmation email, and `src/proxy.ts`
-redirects production traffic that arrives on any other hostname to it, keeping
-the path and query intact. The redirect is deliberately narrow: production
-only, so preview deployments keep their own hostnames, and safe methods only,
-so a Server Action is never replayed across origins. Unset, none of it
-activates and the deployment serves every hostname as before.
+---
 
-The proxy also forwards a confirmation `code` that arrives at `/` to
-`/auth/callback`. Supabase refuses an `emailRedirectTo` that is not on its
-allow-list and falls back to the Site URL *silently*, which otherwise strands
-the code on the dashboard and looks exactly like a dead link.
+## 🎙️ Demo Voice
 
-**The link must be opened in the browser that started the signup.** The
-exchange uses the PKCE verifier stored as a cookie by `signUp()`; a link opened
-on another device fails at the exchange rather than signing anyone in, and the
-message on `/login` says so.
+AIBOT includes a capability-gated browser voice preview for the demo workspace.
 
-Two edges worth knowing, because both are silent in the raw API:
+The preview supports:
 
-- **Already registered.** With confirmations on, Supabase does not reveal that an
-  address exists — it returns a user with an empty `identities` array instead of
-  an error. The signup action treats that shape as "email already registered".
-- **Unconfirmed sign-in.** A password sign-in for an unconfirmed account fails
-  with an "Email not confirmed" error, so the login action says exactly that
-  instead of claiming the credentials are wrong.
+- English
+- Hindi
+- Hinglish
+- Normal enquiry
+- Interested
+- Already have an agency
+- Not interested
+- Send me details
+- Too expensive
 
-`src/app/auth/confirm/route.ts` is the other shape of email link: a
-`token_hash` that it verifies directly. It predates this flow and stays for
-email templates built that way, and for any future recovery or email-change
-link. The signup path does not use it.
+The architecture is:
 
-### What to configure in Supabase
+```text
+Existing Conversation Engine
+          ↓
+       Transcript
+          ↓
+      Speech Plan
+          ↓
+    Browser Speech
+```
 
-Nothing about email delivery belongs in this repository. No SMTP credential and
-no provider name is read by application code.
+There is **one conversation source of truth**.
 
-**1. Authentication → Providers → Email**
+The voice layer does not create calls, leads, follow-ups or analytics records. Replay replays the same generated conversation.
 
-- Enable *Email*.
-- Enable *Confirm email*. With it off, `signUp()` returns a session immediately
-  and the user goes straight to the dashboard with no link to click.
+---
 
-**2. Authentication → Email Templates → Confirm signup**
+## 🤖 Zemo
 
-The default template — `{{ .ConfirmationURL }}` — is what this flow expects. It
-sends the user to Supabase, which verifies the address and then redirects to the
-`emailRedirectTo` above with a one-time code.
+**Zemo is AIBOT's contextual product copilot.**
 
-**3. Authentication → URL Configuration**
+Rather than behaving like a generic chatbot, Zemo understands product context.
 
-| Field | Value |
-| --- | --- |
-| Site URL | your production origin, e.g. `https://aibot.example.com` |
-| Redirect URLs | `http://localhost:3000/auth/callback`, `https://<your-domain>/auth/callback`, and for Vercel previews `https://*-<your-team>.vercel.app/auth/callback` |
+```text
+ZemoInput
+    ↓
+ZemoIntent
+    ↓
+ZemoAction
+    ↓
+Application
+```
 
-A redirect target that is not listed here is refused by Supabase and the user
-comes back to `/login` with an error. Add every origin the app is served from.
+Zemo currently understands:
 
-**4. Project Settings → Authentication → SMTP**
+- current page
+- useful next action
+- contextual tips
+- voice-preview state
+- safe navigation
+- interactive product tour
 
-Custom SMTP is not optional for anything but a private test. The built-in sender
-**refuses to deliver to any address that is not a member of the project's team**,
-and caps everyone at **two emails per hour**. Both limits are enforced by
-Supabase and surface here as a failed signup: the account is not created, and
-`/login` says the confirmation email could not be sent, or that too many have
-been sent recently. Point Supabase at a real SMTP provider before anyone outside
-the team signs up.
+The intent layer is deliberately separated from answering so an LLM can be introduced later without replacing the product's action model.
 
-Supabase also rejects addresses it considers invalid — `@example.com` and other
-reserved or MX-less domains — with a 400 before any email is attempted.
+---
 
-### Workspaces
+## 🏗️ Architecture
 
-Workspace creation belongs to the `on_auth_user_created_workspace` trigger,
-which fires once per new `auth.users` row and reads `workspace_name` from the
-signup metadata. Application code never creates a workspace, so a signup gets
-exactly one however many times the link is opened.
+### Application
 
-## UI layer (Phase 1)
+- Next.js App Router
+- TypeScript
+- React
+- Supabase
+- PostgreSQL
+- Vercel
 
-The interface is built and reviewable before any backend exists. No page calls a
-network, and nothing is faked as connected.
+### Authentication
 
-### Structure
+- Email/password authentication
+- Email confirmation
+- PKCE callback flow
+- Secure server-side session handling
+- Workspace-aware authorization
+
+### Multi-tenancy
+
+Every workspace owns its product data.
+
+Authorization is enforced server-side and through PostgreSQL RLS.
+
+Client-side workspace identifiers are never treated as authorization.
+
+### Provider abstraction
+
+Voice, messaging and AI integrations are kept behind provider boundaries.
+
+This allows future integrations without making the domain layer dependent on a particular vendor.
+
+---
+
+## 🔐 Security principles
+
+- Workspace isolation through RLS
+- Authenticated API access
+- Server-side authorization
+- Capability flags resolved server-side
+- No service-role key in the application
+- No credentials stored in browser state
+- Preview features produce no unintended durable records
+- Zemo currently exposes only safe, allow-listed actions
+
+---
+
+## 📊 Verification
+
+Recent voice and Zemo work has been regression-tested extensively.
+
+Highlights include:
+
+- **3,024 transcript regression comparisons**
+- Scenario and language matrices
+- Browser speech tests
+- Recorded PCM audio verification
+- Test Call regression
+- Capability-gating tests
+- Zemo tests
+- Interactive tour tests
+- Responsive layout checks
+- Production builds and typechecks
+- Full page-load sweeps
+- Console-error and overflow checks
+
+The project treats regression coverage as part of the product architecture, not an afterthought.
+
+---
+
+## 🗂️ Repository structure
 
 ```text
 src/
-  app/                  routes (server components) + globals.css
-    leads/components/   route-local client components
-  components/
-    app-shell.tsx       sidebar, topbar, mobile drawer  (client)
-    section-page.tsx    standard page layout            (server)
-    icons.tsx           typed icon set -> IconName
-    ui/                 Card, StatCard, Badge, DataTable, EmptyState
-  config/navigation.ts  single source of truth for nav + breadcrumb
-  lib/status.ts         domain status -> label + badge tone
-  lib/demo-data.ts      PLACEHOLDER SAMPLE DATA - delete in Phase 3
-  domain/types.ts       shared domain types
-  server/providers/     provider boundaries (voice today)
+├── app/                 # App Router pages + API routes
+├── components/         # Product UI, Zemo and shared components
+├── domain/              # Shared domain models
+├── lib/                 # Client/server utilities
+└── server/              # Demo engines and provider boundaries
+
+supabase/
+└── migrations/          # Database schema + RLS migrations
+
+docs/
+├── ARCHITECTURE.md
+├── SPEECH.md
+└── ZEMO.md
 ```
 
-### Conventions
+---
 
-- **Navigation is derived, never declared.** `AppShell` resolves the active item
-  from `usePathname()` against `config/navigation.ts`. Pages do not say which nav
-  entry they belong to, so the two cannot drift apart.
-- **Status colour comes from the domain.** Views read `LEAD_STATUS_DISPLAY`,
-  `CALL_STATUS_DISPLAY` and `CALL_OUTCOME_DISPLAY` in `lib/status.ts`, keyed by the
-  unions in `domain/types.ts`. Adding a status to a union fails the type-check
-  until it is given a label and tone. Never hard-code a status string in a view.
-- **Pages stay server components.** Interactivity is pushed into small client
-  components (`app-shell.tsx`, `leads/components/leads-table.tsx`).
-- **Styling is plain CSS** in `app/globals.css`, organised into numbered sections
-  with design tokens on `:root`. There is no CSS framework, and none is needed.
-  Every text token meets WCAG AA on its surface; the smallest rendered text is 11px.
-- **Empty states are product-facing.** They say what the area does and how to fill
-  it. They never mention implementation status or internal phases.
+## 🚀 Current status
 
-### Sample data
+### Working
 
-`src/lib/demo-data.ts` exists only so the interface can be designed and reviewed
-before Phase 3. It is static, clearly marked, and surfaced in the topbar as a
-"Sample data" pill so it is never mistaken for live workspace data.
+- Authentication
+- Workspace model
+- Lead management
+- Lead import
+- Agents
+- Campaigns
+- Calls
+- Follow-ups
+- WhatsApp workflow
+- Analytics
+- Zemo
+- Interactive product tour
+- Demo voice scenarios
+- Browser voice preview
+- Business contact configuration
+- Light / dark themes
 
-When Supabase lands, replace each import with a workspace-scoped query and delete
-the file. A clean `npm run typecheck` afterwards proves no view still depends on it.
+### Next
 
-### Not yet wired
+- Calling provider integration
+- WhatsApp provider integration
+- Production-grade speech providers
+- Voice-enabled Zemo
+- LLM-powered Zemo reasoning
+- Confirmation-based product actions
 
-Leads is connected: Add lead and Import CSV or Excel both go through
-`/api/leads`. The rest render as real UI but perform no action until their phase
-lands: page-level buttons (Create agent, New campaign, Export report), topbar
-search and notifications, and the workspace switcher. Controls that will
-stay unavailable for a while are explicitly `disabled` with a reason beside them
-(Connect WhatsApp, Save changes) rather than silently doing nothing.
+---
 
-### Tooling note
+## Product philosophy
 
-There is no ESLint setup. `next lint` was removed in Next.js 16, so the old
-`lint` script was deleted rather than left failing. Adding ESLint's flat config
-(`eslint` + `eslint-config-next`) is a reasonable Phase 2 task.
+AIBOT is intentionally being built as a **real product system**, not a collection of AI demos.
 
-## Deployment
+> **The AI should improve the workflow — not become the workflow.**
 
-The app is a stock Next.js project: Vercel needs no `vercel.json` and no build
-overrides. What it does need is configuration, in this order.
+Conversations, outcomes, permissions, data and actions remain explicit and testable.
 
-**1. Apply the database schema.** Nothing works before this — the workspace
-bootstrap trigger and every RLS policy live here. Run the files in
-`supabase/migrations/` in filename order, either with `supabase db push` or by
-pasting each one into the Supabase SQL editor.
+---
 
-**2. Set the environment variables** in Vercel (Project → Settings →
-Environment Variables), for Production, Preview and Development:
+## Author
 
-| Variable | Where it comes from |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable (anon) key from the same page |
-| `NEXT_PUBLIC_SITE_URL` | optional; your production origin |
+**Amarnath Mishra**
 
-Those two required values are the only configuration the app reads. The secret
-key is deliberately not one of them: no server route uses it, because every
-query runs as the signed-in user so RLS applies.
+Product Builder · Product Analyst · Full-Stack Engineer
 
-`NEXT_PUBLIC_*` values are inlined into the bundle **at build time**, so set
-them before the first deploy and redeploy after changing one — editing the
-variable alone does not change a build that already shipped.
-
-**3. Import the repository** at vercel.com/new. Framework and build command are
-detected; leave them alone.
-
-**4. Point Supabase at the deployed origin** — Authentication → URL
-Configuration — as described under **What to configure in Supabase** above. The
-callback URL must be on the Redirect URLs allow-list or Supabase silently
-redirects confirmation links to the Site URL instead, and signup appears to
-hang with no error.
-
-A deployment that is missing step 2 does not crash: `/login` explains that the
-server is not configured, and every protected route and API route refuses
-rather than rendering signed-in chrome to an anonymous visitor.
-
-## Planned stack
-
-- Next.js + TypeScript
-- Supabase PostgreSQL + Auth
-- Vercel for application hosting
-- Provider adapters for telephony, WhatsApp, and AI
-
-See `docs/ARCHITECTURE.md` and `supabase/migrations/0001_initial_schema.sql`.
+[GitHub](https://github.com/Rrachet) · [LinkedIn](https://in.linkedin.com/in/amarnath-mishra) · [AIBOT](https://aibot-amar-proj.vercel.app)
