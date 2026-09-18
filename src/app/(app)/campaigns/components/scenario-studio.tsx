@@ -104,17 +104,23 @@ export function ScenarioStudio({
   }, [campaignId, scenario, language]);
 
   // Announced for Zemo, which will use it in the next step. Nothing renders
-  // from it here.
+  // from it here — see `voice-preview-state.ts` for why it is published rather
+  // than passed.
   useEffect(() => {
     publishVoicePreviewState({
+      open: true,
       scenario,
       language,
-      speaking: phase === 'ai',
-      complete: phase === 'complete',
       loading,
+      speaking: phase === 'ai',
+      paused: phase === 'paused',
+      complete: phase === 'complete',
     });
   }, [scenario, language, phase, loading]);
 
+  // Closing the dialog unmounts this, and the preview is then not open. A
+  // scenario key left behind would have Zemo talking about a conversation
+  // nobody is looking at.
   useEffect(() => clearVoicePreviewState, []);
 
   const onPhase = useCallback((next: ConversationPhase) => setPhase(next), []);
@@ -124,7 +130,7 @@ export function ScenarioStudio({
       <div className="studio-chips">
         <fieldset className="studio-group">
           <legend>Try a scenario</legend>
-          <p className="studio-lead">How should we test the agent?</p>
+          <p className="studio-lead">Choose how you want to demo the AI.</p>
           <div className="studio-options">
             {PREVIEW_SCENARIOS.map((option) => (
               <label

@@ -207,7 +207,11 @@ export function TestCallDialog({
               </div>
             </div>
 
-            {liveVoicePreview ? (
+            {/* `open` as well as the capability: a closed dialog keeps its
+                children mounted, and a preview that is still mounted is still
+                fetching conversations and still telling Zemo it is on screen
+                when nobody can see it. */}
+            {liveVoicePreview && open ? (
               <ScenarioStudio
                 campaignId={campaign.id}
                 scenario={scenario}
