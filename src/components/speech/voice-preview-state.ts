@@ -36,6 +36,17 @@ export interface VoicePreviewState {
   language: SpeechRegister | null;
   /** A conversation is being prepared. */
   loading: boolean;
+  /**
+   * A conversation is running: an agent turn is being spoken, or a prospect
+   * turn is on screen between two of them.
+   *
+   * Separate from `speaking` because the two are genuinely different things and
+   * both are needed. `speaking` is about the browser's voice — it is what
+   * decides whether anything may interrupt. This is about the conversation, and
+   * it is what stops a reader being told something different every few seconds
+   * as playback moves between the two sides of the call.
+   */
+  playing: boolean;
   /** The browser is speaking an agent turn right now. */
   speaking: boolean;
   /** Playback is held, mid-conversation. */
@@ -50,6 +61,7 @@ export const NO_VOICE_PREVIEW: VoicePreviewState = Object.freeze({
   scenario: null,
   language: null,
   loading: false,
+  playing: false,
   speaking: false,
   paused: false,
   complete: false,
@@ -96,6 +108,7 @@ export function publishVoicePreviewState(state: VoicePreviewState): void {
     current.scenario === next.scenario &&
     current.language === next.language &&
     current.loading === next.loading &&
+    current.playing === next.playing &&
     current.speaking === next.speaking &&
     current.paused === next.paused &&
     current.complete === next.complete

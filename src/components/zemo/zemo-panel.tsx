@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { ZemoAvatar, type ZemoMood } from './zemo-avatar';
 import { ZemoDemoForm } from './zemo-demo-form';
+import { allowedAction, type ZemoAction } from './zemo-intent';
 import type { ZemoMessage } from './zemo-provider';
 
 /**
@@ -24,6 +25,7 @@ export function ZemoPanel({
   onSend,
   onClose,
   onSuggestion,
+  onAction,
   onFormDone,
 }: {
   messages: ZemoMessage[];
@@ -33,6 +35,8 @@ export function ZemoPanel({
   onSend: (text: string) => void;
   onClose: () => void;
   onSuggestion: (text: string) => void;
+  /** Runs an action the person pressed. Navigation is a link and handles itself. */
+  onAction: (action: ZemoAction) => void;
   onFormDone: (summary: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,11 +98,12 @@ export function ZemoPanel({
             <div className="zemo-bubble-group">
               <p className="zemo-bubble">{message.text}</p>
 
-              {message.navigate ? (
-                <Link className="zemo-go" href={message.navigate.href} onClick={onClose}>
-                  {message.navigate.label}
-                  <Icon name="arrowRight" size={14} />
-                </Link>
+              {allowedAction(message.action) ? (
+                <ZemoActionButton
+                  action={message.action}
+                  onClose={onClose}
+                  onAction={onAction}
+                />
               ) : null}
 
               {message.form === 'demo-request' ? (
@@ -149,5 +154,43 @@ export function ZemoPanel({
         </button>
       </form>
     </div>
+  );
+}
+
+/**
+ * The one thing a message offers to do.
+ *
+ * Navigation stays a real link — it has to be right-clickable, openable in a
+ * new tab, and visible as a destination in the status bar before it is
+ * followed. Nothing about it is special because Zemo produced it: the route is
+ * guarded on the server exactly as it is from the navigation.
+ *
+ * Everything else is a button, because it does something on this page rather
+ * than going anywhere. Both render the same, because to the person pressing
+ * them they are the same kind of thing.
+ */
+function ZemoActionButton({
+  action,
+  onClose,
+  onAction,
+}: {
+  action: ZemoAction;
+  onClose: () => void;
+  onAction: (action: ZemoAction) => void;
+}) {
+  if (action.kind === 'navigate') {
+    return (
+      <Link className="zemo-go" href={action.href} onClick={onClose}>
+        {action.label}
+        <Icon name="arrowRight" size={14} />
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className="zemo-go" onClick={() => onAction(action)}>
+      {action.label}
+      <Icon name="arrowRight" size={14} />
+    </button>
   );
 }

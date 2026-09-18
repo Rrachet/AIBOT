@@ -6417,3 +6417,42 @@ a.quick-card:hover {
     max-height: 220px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   17. Zemo beside the voice preview
+
+   One line from Zemo, inside the dialog rather than floating over it. Sized so
+   that the longest line and the shortest occupy the same height: the text
+   changes as the conversation plays, and a panel that grows and shrinks under
+   a playing conversation would be the most distracting thing on the screen.
+--------------------------------------------------------------------------- */
+
+.zemo-aside {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.zemo-aside svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+@media (max-width: 560px) {
+  .zemo-aside {
+    /* Three lines at a phone's width where the desktop takes one, so the floor
+       is raised to match: the line changes as the conversation plays, and the
+       player below it must not step up and down each time it does. */
+    min-height: 76px;
+    margin: 0 12px;
+  }
+}

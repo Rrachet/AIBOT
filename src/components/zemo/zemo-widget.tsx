@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ZemoAvatar, type ZemoGaze, type ZemoMood } from './zemo-avatar';
 import { ZemoPanel } from './zemo-panel';
-import { buildContext } from './zemo-context';
+import { buildContext, type ZemoHeard } from './zemo-context';
 import { markNudged, nudgeFor, NUDGE_DELAY_MS } from './zemo-prompts';
 import {
   DemoZemoProvider,
@@ -13,6 +13,8 @@ import {
   type ZemoMessage,
   type ZemoProvider,
 } from './zemo-provider';
+import { allowedAction, type ZemoAction, type ZemoInputSource } from './zemo-intent';
+import { useVoicePreviewState } from '@/components/speech/voice-preview-state';
 import { useTourRun } from './tour/tour-controller';
 import { TourDone, TourIntro } from './tour/tour-intro';
 import { tourFor } from './tour/tour-steps';
@@ -91,9 +93,39 @@ export function ZemoWidget({
   const [done, setDone] = useState(false);
   const resumed = useRef(false);
 
+  /**
+   * What the demo voice preview is doing, if one is open.
+   *
+   * A typed subscription to the store the preview publishes to — not a lookup
+   * of anything on screen. The preview lives inside a modal dialog several
+   * levels down the tree from here, and while that dialog is up this widget is
+   * inert, so there is no path by which Zemo could have read it even if it
+   * were inclined to.
+   */
+  const voice = useVoicePreviewState();
+
+  /**
+   * The conversation last played, kept once the dialog has closed.
+   *
+   * Written after render, read during it, which is what makes the handover
+   * work: on the render where the preview reports itself closed this still
+   * holds what it was, so Zemo can talk about the thing the person has just
+   * been listening to instead of resetting to the page behind it.
+   */
+  const heard = useRef<ZemoHeard | null>(null);
+  useEffect(() => {
+    if (voice.open && voice.scenario && voice.language) {
+      heard.current = { scenario: voice.scenario, language: voice.language };
+    }
+  }, [voice]);
+
   const context = useMemo(
-    () => buildContext(pathname, userState ? { userState } : {}),
-    [pathname, userState]
+    () =>
+      buildContext(pathname, {
+        ...(userState ? { userState } : {}),
+        ...(voice.open ? { voice } : heard.current ? { heard: heard.current } : {}),
+      }),
+    [pathname, userState, voice]
   );
 
   // Load where this person got to. Inside the app that is a server round trip
@@ -231,6 +263,10 @@ export function ZemoWidget({
   useEffect(() => {
     setNudge(null);
     if (open || running || showIntro || done || openedOnce.current) return;
+    // Never over a demo. Somebody playing a conversation to a prospect does
+    // not need a tap on the shoulder, and the dialog check below only catches
+    // this at fire time — this catches it at schedule time as well.
+    if (voice.open) return;
 
     const line = nudgeFor(pathname, lastNudgeAt);
     if (!line) return;
@@ -254,7 +290,7 @@ export function ZemoWidget({
     // `lastNudgeAt` is read at schedule time on purpose; adding it as a
     // dependency would reschedule the timer every time a nudge fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, open, running, showIntro, done]);
+  }, [pathname, open, running, showIntro, done, voice.open]);
 
   const openPanel = useCallback(() => {
     openedOnce.current = true;
@@ -271,8 +307,15 @@ export function ZemoWidget({
     requestAnimationFrame(() => launcherRef.current?.focus());
   }, []);
 
+  /**
+   * One way in, whatever did the asking.
+   *
+   * `source` is carried rather than assumed so that a microphone, if one is
+   * ever added, is a fourth value here and nothing else changes. It is not
+   * added: nothing in this build listens to anything.
+   */
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, source: ZemoInputSource = 'keyboard') => {
       setMessages((current) => [...current, userMessage(text)]);
       setBusy(true);
       trackTour('zemo_question_asked', { surface });
@@ -280,20 +323,42 @@ export function ZemoWidget({
         // A beat before answering. Instant replies read as a lookup table,
         // which is exactly what would make Zemo feel cheap.
         await new Promise((resolve) => setTimeout(resolve, 380));
-        const reply = await provider.respond({ message: text, context, history: messages });
-
-        // "Show me the tour" is answered by running it, not describing it.
-        if (reply.messages.some((message) => message.startTour)) {
-          setMessages((current) => [...current, ...reply.messages]);
-          window.setTimeout(startTour, 700);
-          return;
-        }
+        const reply = await provider.respond({ text, source, context }, messages);
         setMessages((current) => [...current, ...reply.messages]);
+
+        // "Show me the tour" is answered by running it, not describing it —
+        // they asked in words, so the offer does not need pressing twice.
+        if (reply.messages.some((message) => message.action?.kind === 'start-tour')) {
+          window.setTimeout(startTour, 700);
+        }
       } finally {
         setBusy(false);
       }
     },
     [context, messages, startTour, surface]
+  );
+
+  /**
+   * Performs an action the person pressed.
+   *
+   * Navigation never arrives here — it is a link, and the browser follows it.
+   * What is left is the tour and asking Zemo something else, both of which
+   * change nothing and can be walked away from. The allow-list is checked
+   * again rather than trusted from the panel, because "it was already
+   * validated upstream" is how an action model stops being one.
+   */
+  const perform = useCallback(
+    (action: ZemoAction) => {
+      if (!allowedAction(action)) return;
+      if (action.kind === 'start-tour') {
+        startTour();
+        return;
+      }
+      if (action.kind === 'ask') {
+        void send(action.question, 'suggestion');
+      }
+    },
+    [send, startTour]
   );
 
   const onFormDone = useCallback(
@@ -350,7 +415,8 @@ export function ZemoWidget({
             busy={busy}
             route={pathname}
             onSend={(text) => void send(text)}
-            onSuggestion={(text) => void send(text)}
+            onSuggestion={(text) => void send(text, 'suggestion')}
+            onAction={perform}
             onClose={closePanel}
             onFormDone={onFormDone}
           />

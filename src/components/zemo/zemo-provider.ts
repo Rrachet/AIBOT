@@ -1,5 +1,20 @@
 import { PLANS, PRICING_HONESTY, FAQ } from '@/content/plans';
 import { pageContextFor, type ZemoContext, type ZemoPageContext } from './zemo-context';
+import {
+  askAbout,
+  goTo,
+  takeTour,
+  type ZemoAction,
+  type ZemoInput,
+  type ZemoIntent,
+  type ZemoIntentKind,
+} from './zemo-intent';
+import {
+  aboutVoicePreview,
+  voiceAnswerFor,
+  voiceRecallFor,
+  voiceSuggestionsFor,
+} from './zemo-voice';
 
 /**
  * Zemo's brain, behind an interface.
@@ -10,24 +25,36 @@ import { pageContextFor, type ZemoContext, type ZemoPageContext } from './zemo-c
  * class against `ZemoProvider` and changing where it is constructed — nothing
  * in the widget, panel or context model has to move.
  *
- * Two rules bind every implementation:
+ * The work happens in two halves, deliberately separable:
+ *
+ *   classify(input) -> ZemoIntent     what was meant
+ *   answer(intent)  -> ZemoReply      what to say and offer about it
+ *
+ * A model would replace the first half and leave the second alone, which is
+ * the point: the set of things Zemo can offer to do stays a closed, typed,
+ * reviewable list no matter what decides which one to reach for.
+ *
+ * Three rules bind every implementation:
  *   - Zemo answers about AIBOT only from the structured context it is given.
  *     If the answer is not in there, it says so.
  *   - Zemo never reports an action as done that it has not done.
+ *   - Zemo offers actions; the person takes them. Knowing a route exists is
+ *     not permission to open it, and the server decides that either way.
  */
 
 export interface ZemoMessage {
   id: string;
   role: 'zemo' | 'user';
   text: string;
-  /** Rendered as chips under the message. */
+  /** Rendered as chips under the message. Each is a question, not a command. */
   suggestions?: string[];
-  /** A route Zemo is offering to open. Confirmed by the user, never automatic. */
-  navigate?: { label: string; href: string };
+  /**
+   * The one thing this message offers to do — a button the person presses.
+   * Validated against the action allow-list before it is rendered.
+   */
+  action?: ZemoAction;
   /** Starts or advances the demo-request flow. */
   form?: 'demo-request';
-  /** Asks the widget to run the guided tour rather than describe it. */
-  startTour?: boolean;
 }
 
 export interface ZemoReply {
@@ -37,11 +64,9 @@ export interface ZemoReply {
 export interface ZemoProvider {
   /** The line Zemo opens with on a given page. */
   greeting(context: ZemoContext): ZemoMessage;
-  respond(input: {
-    message: string;
-    context: ZemoContext;
-    history: ZemoMessage[];
-  }): Promise<ZemoReply>;
+  /** What an input meant. Exposed so it can be tested without the answers. */
+  classify(input: ZemoInput): ZemoIntent;
+  respond(input: ZemoInput, history?: ZemoMessage[]): Promise<ZemoReply>;
 }
 
 let counter = 0;
@@ -101,6 +126,20 @@ const DESTINATIONS: { href: string; label: string; words: string[] }[] = [
 export class DemoZemoProvider implements ZemoProvider {
   greeting(context: ZemoContext): ZemoMessage {
     const page = pageContextFor(context.route);
+
+    // A conversation outranks the page behind it. Somebody who has just played
+    // one to a prospect is not wondering what campaigns are for — and that
+    // holds for a few seconds after they close it, too.
+    const voice = context.voice ? voiceAnswerFor(context.voice) : null;
+    if (voice) {
+      return zemoMessage(voice, { suggestions: this.suggestionsFor(context) });
+    }
+    if (context.heard) {
+      return zemoMessage(voiceRecallFor(context.heard), {
+        suggestions: this.suggestionsFor(context),
+      });
+    }
+
     const opening =
       context.surface === 'public'
         ? `Hey. You're on ${page.page}.`
@@ -113,156 +152,254 @@ export class DemoZemoProvider implements ZemoProvider {
 
   private suggestionsFor(context: ZemoContext): string[] {
     const page = pageContextFor(context.route);
+
+    const listening = voiceSuggestionsFor(context.voice);
+    if (listening) return listening;
+    if (context.heard) {
+      return ['What was that testing?', 'Is this a real call?', 'What should I do next?'];
+    }
+
     if (context.surface === 'public') {
       return ['Show me around', 'What does AIBOT actually do?', 'Which plan fits me?'];
     }
-    const base = ['Show me around', 'What is this page for?'];
+
+    const base = ['What is this page for?'];
+    if (page.nextAction) base.push('What should I do next?');
     const concept = page.keyConcepts?.[0];
     if (concept) base.push(`What is ${concept}?`);
-    else base.push('How do I run a campaign?');
+    else base.push('Show me around');
     return base;
   }
 
-  async respond({ message, context }: {
-    message: string;
-    context: ZemoContext;
-    history: ZemoMessage[];
-  }): Promise<ZemoReply> {
-    const text = norm(message);
+  /**
+   * Words in, one intent out.
+   *
+   * Order is precedence, and every reordering here has a reason written
+   * against it. This is the half a language model would replace.
+   */
+  classify({ text, source, context }: ZemoInput): ZemoIntent {
+    const words = norm(text);
     const page = pageContextFor(context.route);
+    const of = (kind: ZemoIntentKind, subject?: string, confidence: 'high' | 'low' = 'high') =>
+      ({ kind, source, confidence, ...(subject ? { subject } : {}) }) satisfies ZemoIntent;
 
-    // 1. The tour. Checked before navigation, because "show me around" would
-    //    otherwise be read as a request to open a page.
+    // The tour. Checked before navigation, because "show me around" would
+    // otherwise be read as a request to open a page.
     if (
-      hasAny(text, ['tour', 'show me around', 'walk me through', 'guide me', 'show me the tour']) ||
-      /\b(show|walk|take) me (around|through)\b/.test(text)
+      hasAny(words, ['tour', 'show me around', 'walk me through', 'guide me', 'show me the tour']) ||
+      /\b(show|walk|take) me (around|through)\b/.test(words)
     ) {
-      return {
-        messages: [
-          zemoMessage("Come on then. I'll keep it to about a minute.", { startTour: true }),
-        ],
-      };
+      return of('run-tour');
     }
 
-    // 2. Demo request. Checked early so "I want a demo" never falls through to
-    //    a glossary match on the word "call".
-    if (hasAny(text, ['demo', 'talk to someone', 'contact me', 'sales', 'call me', 'get in touch'])) {
-      return {
-        messages: [
+    // Demo request. Checked early so "I want a demo" never falls through to a
+    // glossary match on the word "call".
+    if (hasAny(words, ['demo', 'talk to someone', 'contact me', 'sales', 'call me', 'get in touch'])) {
+      return of('request-demo');
+    }
+
+    // The voice preview, but only while one is actually open. The same words
+    // on the analytics page mean something else entirely.
+    if (context.voice?.open && aboutVoicePreview(words)) {
+      return of('voice-preview', context.voice.scenario ?? undefined);
+    }
+    // After the dialog is closed the words change: nobody says "the preview",
+    // they say "what was that". Both point at the same conversation.
+    if (
+      context.heard &&
+      (aboutVoicePreview(words) ||
+        hasAny(words, ['what was that', 'that call', 'that conversation', 'just heard', 'just played']))
+    ) {
+      return of('voice-preview', context.heard.scenario);
+    }
+
+    if (hasAny(words, ['take me', 'go to', 'open', 'show me', 'navigate', 'where is', 'where do i'])) {
+      const target = DESTINATIONS.find((destination) => hasAny(words, destination.words));
+      if (target) return of('navigate', target.href);
+    }
+
+    if (hasAny(words, ['price', 'pricing', 'cost', 'plan', 'how much', 'expensive', 'free'])) {
+      const named = PLANS.find((plan) => words.includes(plan.id));
+      return of('pricing', named?.id);
+    }
+
+    if (hasAny(words, ['real call', 'really call', 'actually call', 'simulated', 'fake', 'dial'])) {
+      return of('simulation-honesty');
+    }
+
+    if (page.glossary) {
+      const term = Object.keys(page.glossary).find((entry) => words.includes(norm(entry)));
+      if (term) return of('define-term', term);
+    }
+
+    // "What now?" before "what is this?", because somebody asking what to do
+    // next has already worked out where they are.
+    if (
+      hasAny(words, ['next', 'what now', 'now what', 'what do i do', 'what should i do', 'start']) &&
+      page.nextAction
+    ) {
+      return of('next-step');
+    }
+
+    if (hasAny(words, ['this page', 'what is this', 'where am i', 'what does this do', 'explain'])) {
+      return of('explain-page');
+    }
+
+    if (page.commonQuestions?.some((entry) => overlaps(words, norm(entry.q)))) {
+      return of('explain-page', 'common-question');
+    }
+
+    if (FAQ.some((item) => overlaps(words, norm(item.q)))) {
+      return of('explain-page', 'faq');
+    }
+
+    if (hasAny(words, ['how do i', 'how to', 'get started', 'first', 'set up', 'setup'])) {
+      return of('how-to');
+    }
+
+    if (hasAny(words, ['who are you', 'what are you', 'your name', 'zemo'])) {
+      return of('about-zemo');
+    }
+
+    if (hasAny(words, ['thanks', 'thank you', 'cheers', 'nice', 'cool'])) {
+      return of('courtesy');
+    }
+
+    return of('unknown', undefined, 'low');
+  }
+
+  async respond(input: ZemoInput): Promise<ZemoReply> {
+    const intent = this.classify(input);
+    return { messages: this.answer(intent, input) };
+  }
+
+  /**
+   * One intent in, the messages for it out.
+   *
+   * Every branch ends in something Zemo can support: a sentence from the page
+   * model, a plan from the pricing data, or an admission that it does not
+   * know. None of them compose an answer out of general knowledge.
+   */
+  private answer(intent: ZemoIntent, input: ZemoInput): ZemoMessage[] {
+    const { context } = input;
+    const words = norm(input.text);
+    const page = pageContextFor(context.route);
+
+    switch (intent.kind) {
+      case 'run-tour':
+        return [
+          zemoMessage("Come on then. I'll keep it to about a minute.", {
+            action: takeTour('Start the tour'),
+          }),
+        ];
+
+      case 'request-demo':
+        return [
           zemoMessage(
             "Happy to set that up. I'll take three things and pass them on — no calendar dance.",
             { form: 'demo-request' }
           ),
-        ],
-      };
-    }
+        ];
 
-    // 3. Navigation. Only offered, never performed.
-    if (hasAny(text, ['take me', 'go to', 'open', 'show me', 'navigate', 'where is', 'where do i'])) {
-      const target = DESTINATIONS.find((destination) => hasAny(text, destination.words));
-      if (target) {
+      case 'voice-preview': {
+        const answer = context.voice
+          ? voiceAnswerFor(context.voice)
+          : context.heard
+            ? voiceRecallFor(context.heard)
+            : null;
+        if (answer) return [zemoMessage(answer, { suggestions: this.suggestionsFor(context) })];
+        break;
+      }
+
+      case 'navigate': {
+        const target = DESTINATIONS.find((destination) => destination.href === intent.subject);
+        if (!target) break;
         if (target.href === context.route) {
-          return {
-            messages: [
-              zemoMessage(`You're already here. ${page.summary}`, {
-                suggestions: this.suggestionsFor(context),
-              }),
-            ],
-          };
-        }
-        return {
-          messages: [
-            zemoMessage(`${capitalise(target.label)} it is.`, {
-              navigate: { label: `Open ${target.label}`, href: target.href },
+          return [
+            zemoMessage(`You're already here. ${page.summary}`, {
+              suggestions: this.suggestionsFor(context),
             }),
-          ],
-        };
+          ];
+        }
+        return [
+          zemoMessage(`${capitalise(target.label)} it is.`, {
+            action: goTo(`Open ${target.label}`, target.href),
+          }),
+        ];
       }
-    }
 
-    // 4. Pricing.
-    if (hasAny(text, ['price', 'pricing', 'cost', 'plan', 'how much', 'expensive', 'free'])) {
-      return { messages: [this.pricingAnswer(text)] };
-    }
+      case 'pricing':
+        return [this.pricingAnswer(words, intent.subject)];
 
-    // 5. Simulation honesty — asked directly, answered directly.
-    if (hasAny(text, ['real call', 'really call', 'actually call', 'simulated', 'fake', 'dial'])) {
-      return {
-        messages: [
+      case 'simulation-honesty': {
+        const listening = context.voice?.open
+          ? ' The voice you can hear right now is your own browser reading the agent’s side of a generated conversation — a preview, not a call.'
+          : context.heard
+            ? ' What you just played was your own browser reading the agent’s side of a generated conversation — a preview, not a call.'
+            : '';
+        return [
           zemoMessage(
-            "Straight answer: not yet. Calls and WhatsApp messages are simulated end to end and labelled everywhere they appear — the transcript, outcome and follow-up are real rows in your workspace, but no number is dialled. Live calling needs a telephony provider connected.",
-            { suggestions: ['Which plan fits me?', 'Book me a demo'] }
+            'Straight answer: not yet. Calls and WhatsApp messages are simulated end to end and labelled everywhere they appear — the transcript, outcome and follow-up are real rows in your workspace, but no number is dialled. Live calling needs a telephony provider connected.' +
+              listening,
+            { suggestions: this.suggestionsFor(context) }
           ),
-        ],
-      };
-    }
-
-    // 6. Vocabulary from this page's glossary.
-    if (page.glossary) {
-      const entry = Object.entries(page.glossary).find(([term]) => text.includes(norm(term)));
-      if (entry) {
-        return {
-          messages: [zemoMessage(entry[1], { suggestions: this.suggestionsFor(context) })],
-        };
+        ];
       }
-    }
 
-    // 7. Page questions, answered why-first.
-    if (hasAny(text, ['this page', 'what is this', 'where am i', 'what does this do', 'explain'])) {
-      return { messages: [this.explainPage(page, context)] };
-    }
-
-    // 8. Questions this page has been asked before.
-    if (page.commonQuestions) {
-      const hit = page.commonQuestions.find((entry) => overlaps(text, norm(entry.q)));
-      if (hit) {
-        return {
-          messages: [zemoMessage(hit.a, { suggestions: this.suggestionsFor(context) })],
-        };
+      case 'define-term': {
+        const definition = intent.subject ? page.glossary?.[intent.subject] : undefined;
+        if (definition) {
+          return [zemoMessage(definition, { suggestions: this.suggestionsFor(context) })];
+        }
+        break;
       }
-    }
 
-    // 9. The FAQ, which is the same text the pricing page publishes.
-    const faq = FAQ.find((item) => overlaps(text, norm(item.q)));
-    if (faq) {
-      return { messages: [zemoMessage(faq.a, { suggestions: this.suggestionsFor(context) })] };
-    }
+      case 'next-step':
+        return [this.nextStep(page, context)];
 
-    // 10. Onboarding walkthroughs.
-    if (hasAny(text, ['how do i', 'how to', 'get started', 'first', 'set up', 'setup'])) {
-      const answer = this.howTo(text);
-      if (answer) return { messages: [answer] };
-    }
+      case 'explain-page': {
+        if (intent.subject === 'common-question') {
+          const hit = page.commonQuestions?.find((entry) => overlaps(words, norm(entry.q)));
+          if (hit) return [zemoMessage(hit.a, { suggestions: this.suggestionsFor(context) })];
+        }
+        if (intent.subject === 'faq') {
+          const faq = FAQ.find((item) => overlaps(words, norm(item.q)));
+          if (faq) return [zemoMessage(faq.a, { suggestions: this.suggestionsFor(context) })];
+        }
+        return [this.explainPage(page, context)];
+      }
 
-    // 11. Small talk, briefly, then back to work.
-    if (hasAny(text, ['who are you', 'what are you', 'your name', 'zemo'])) {
-      return {
-        messages: [
+      case 'how-to': {
+        const answer = this.howTo(words);
+        if (answer) return [answer];
+        break;
+      }
+
+      case 'about-zemo':
+        return [
           zemoMessage(
             "I'm Zemo. I know AIBOT well and I'll tell you when I don't know something, which is more than most chat bubbles will offer.",
             { suggestions: this.suggestionsFor(context) }
           ),
-        ],
-      };
+        ];
+
+      case 'courtesy':
+        return [zemoMessage('Any time.')];
+
+      default:
+        break;
     }
 
-    if (hasAny(text, ['thanks', 'thank you', 'cheers', 'nice', 'cool'])) {
-      return { messages: [zemoMessage('Any time.')] };
-    }
-
-    // 10. Out of scope. Said plainly rather than guessed at.
-    return {
-      messages: [
-        zemoMessage(
-          "That one's outside what I know. I can explain any page you're on, walk you through agents, campaigns, calls, follow-ups or analytics, break down the plans, or get you a demo.",
-          { suggestions: this.suggestionsFor(context) }
-        ),
-      ],
-    };
+    return [
+      zemoMessage(
+        "That one's outside what I know. I can explain any page you're on, walk you through agents, campaigns, calls, follow-ups or analytics, break down the plans, or get you a demo.",
+        { suggestions: this.suggestionsFor(context) }
+      ),
+    ];
   }
 
   /**
-   * Why, then what, then where it sits.
+   * Why, then what, then where it sits, then one thing worth knowing.
    *
    * The order is the whole point. "This page lists your calls" is a caption
    * that teaches nobody anything; leading with the problem the page solves is
@@ -277,18 +414,39 @@ export class DemoZemoProvider implements ZemoProvider {
 
     return zemoMessage(parts.join(' '), {
       suggestions: this.suggestionsFor(context),
-      ...(context.surface === 'app' ? { navigate: undefined } : {}),
+      ...(page.nextAction ? { action: askAbout('What should I do next?') } : {}),
     });
   }
 
-  private pricingAnswer(text: string): ZemoMessage {
-    const named = PLANS.find((plan) => text.includes(plan.id));
+  /**
+   * "Right — what now?"
+   *
+   * One thing to do, one thing worth knowing while doing it, and a way to the
+   * page it happens on. Not a checklist: a person who wanted a checklist is
+   * reading the page, not asking.
+   */
+  private nextStep(page: ZemoPageContext, context: ZemoContext): ZemoMessage {
+    const tip = page.tips?.[0];
+    const text = tip ? `${page.nextAction} ${tip}` : (page.nextAction ?? page.summary);
+    const onward = page.suggestedRoutes?.find((route) => route !== context.route);
+    const destination = onward
+      ? DESTINATIONS.find((entry) => entry.href === onward)
+      : undefined;
+
+    return zemoMessage(text, {
+      suggestions: this.suggestionsFor(context),
+      ...(destination ? { action: goTo(`Open ${destination.label}`, destination.href) } : {}),
+    });
+  }
+
+  private pricingAnswer(text: string, planId?: string): ZemoMessage {
+    const named = PLANS.find((plan) => plan.id === planId);
     if (named) {
       return zemoMessage(
         `${named.name} is ${named.price} ${named.cadence}. ${named.limits
           .map((limit) => `${limit.value.toLowerCase()} ${limit.label.toLowerCase()}`)
           .join(', ')}. Best for ${named.bestFor}. ${PRICING_HONESTY}`,
-        { navigate: { label: 'Open pricing', href: '/pricing' } }
+        { action: goTo('Open pricing', '/pricing') }
       );
     }
 
@@ -297,13 +455,13 @@ export class DemoZemoProvider implements ZemoProvider {
         `Depends on volume, not features — every plan has the whole product. ${PLANS.map(
           (plan) => `${plan.name} (${plan.price}) suits ${plan.bestFor}`
         ).join('. ')}. Start on Starter; it costs nothing while AIBOT is in demo.`,
-        { navigate: { label: 'Compare the plans', href: '/pricing' } }
+        { action: goTo('Compare the plans', '/pricing') }
       );
     }
 
     return zemoMessage(
       `${PLANS.map((plan) => `${plan.name} — ${plan.price} ${plan.cadence}`).join('. ')}. ${PRICING_HONESTY}`,
-      { navigate: { label: 'Open pricing', href: '/pricing' } }
+      { action: goTo('Open pricing', '/pricing') }
     );
   }
 
@@ -311,19 +469,19 @@ export class DemoZemoProvider implements ZemoProvider {
     if (hasAny(text, ['agent'])) {
       return zemoMessage(
         'Agents → Create agent. Give it a name, the company it speaks for, a purpose and a manner. Then run a demo call on it and listen — an agent is only as good as its brief, and you will hear the difference immediately.',
-        { navigate: { label: 'Open agents', href: '/agents' } }
+        { action: goTo('Open agents', '/agents') }
       );
     }
     if (hasAny(text, ['import', 'csv', 'excel', 'upload lead'])) {
       return zemoMessage(
         'Leads → Import CSV or Excel. Map the columns if AIBOT cannot work them out; it flags duplicates and invalid rows before anything is saved.',
-        { navigate: { label: 'Open leads', href: '/leads' } }
+        { action: goTo('Open leads', '/leads') }
       );
     }
     if (hasAny(text, ['campaign', 'call'])) {
       return zemoMessage(
         'Four steps: attach leads, pick the agent, fill in the product, objective, script and questions, then run a test call. The readiness panel tells you what is still missing before anyone is contacted.',
-        { navigate: { label: 'Open campaigns', href: '/campaigns' } }
+        { action: goTo('Open campaigns', '/campaigns') }
       );
     }
     return null;

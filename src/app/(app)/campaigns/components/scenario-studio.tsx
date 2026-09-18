@@ -23,6 +23,7 @@ import {
   SPEECH_REGISTERS,
   type SpeechRegister,
 } from '@/lib/speech/speech-types';
+import { ZemoVoiceAside } from '@/components/zemo/zemo-aside';
 import { VoicePreview } from './voice-preview';
 
 /**
@@ -103,15 +104,17 @@ export function ScenarioStudio({
     return () => controller.abort();
   }, [campaignId, scenario, language]);
 
-  // Announced for Zemo, which will use it in the next step. Nothing renders
-  // from it here — see `voice-preview-state.ts` for why it is published rather
-  // than passed.
+  // Announced for Zemo, which reads it through `useVoicePreviewState()` — both
+  // the line it says beside the preview here, and the answers it gives in its
+  // own panel once the dialog is closed again. Published rather than passed;
+  // `voice-preview-state.ts` says why.
   useEffect(() => {
     publishVoicePreviewState({
       open: true,
       scenario,
       language,
       loading,
+      playing: phase === 'ai' || phase === 'prospect',
       speaking: phase === 'ai',
       paused: phase === 'paused',
       complete: phase === 'complete',
@@ -173,6 +176,8 @@ export function ScenarioStudio({
           </div>
         </fieldset>
       </div>
+
+      <ZemoVoiceAside />
 
       {error ? (
         <p className="form-alert" role="alert">

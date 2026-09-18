@@ -12,6 +12,10 @@
  * — turning a question into one of these answers — lives in the provider.
  */
 
+import type { VoicePreviewState } from '@/components/speech/voice-preview-state';
+import type { PreviewScenario } from '@/domain/voice-scenarios';
+import type { SpeechRegister } from '@/lib/speech/speech-types';
+
 export type ZemoSurface = 'public' | 'app';
 
 export interface ZemoPageContext {
@@ -43,6 +47,22 @@ export interface ZemoPageContext {
   commonQuestions?: { q: string; a: string }[];
   /** Terms Zemo can define while you are here. */
   glossary?: Record<string, string>;
+  /**
+   * The one thing worth doing next from here.
+   *
+   * Not a list of everything the page can do — the page already shows those.
+   * This is what Zemo would say if somebody asked "right, what now?", which is
+   * the question a person actually has when a screen is new to them.
+   */
+  nextAction?: string;
+  /**
+   * Two or three things worth knowing while you are here.
+   *
+   * The kind of thing a colleague mentions in passing and nobody writes down:
+   * what a number excludes, what does not live on this page, which mistake
+   * everyone makes once. Offered on request, never fired at somebody.
+   */
+  tips?: string[];
   /** The single proactive line Zemo may offer on this page. */
   nudge?: string;
   /** Routes Zemo may offer to take you to from here. */
@@ -58,6 +78,33 @@ export interface ZemoContext {
   /** Coarse state — "empty" vs "working" — never the data itself. */
   userState?: 'anonymous' | 'empty-workspace' | 'active-workspace';
   availableActions?: string[];
+  /**
+   * What the demo voice preview is doing, when one is on screen.
+   *
+   * Supplied by the widget from `useVoicePreviewState()` — a typed store the
+   * preview publishes to. Zemo does not go looking for it: no DOM reading, no
+   * class names, no guessing from text. Absent means there is no preview, not
+   * that Zemo failed to find one.
+   *
+   * It carries a scenario key, a language and four booleans. No transcript, no
+   * lead, no workspace data, nothing about the person watching.
+   */
+  voice?: VoicePreviewState;
+  /**
+   * The conversation last played, after the preview has been closed again.
+   *
+   * The preview lives in a modal dialog, so while it is open Zemo's own panel
+   * cannot be reached — which would leave everything Zemo knows about the
+   * preview unreachable too. This is what carries it across the close: enough
+   * to talk about what was just heard, and nothing else.
+   */
+  heard?: ZemoHeard;
+}
+
+/** Which conversation was played, in which language. Nothing from it. */
+export interface ZemoHeard {
+  scenario: PreviewScenario;
+  language: SpeechRegister;
 }
 
 const GLOSSARY_SHARED: Record<string, string> = {
@@ -101,6 +148,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Want the twenty-second version?',
     suggestedRoutes: ['/pricing', '/signup'],
+    nextAction: "See whether the numbers work for you, then start a workspace. The whole product runs on the free plan.",
+    tips: [
+      "Every plan has the entire product. What changes is how many leads, agents and campaigns you can run.",
+      "Calls are simulated end to end and labelled wherever they appear, so you can hear an agent before you connect anything.",
+    ],
   },
   {
     route: '/pricing',
@@ -121,6 +173,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Want the plans without the marketing fluff?',
     suggestedRoutes: ['/', '/signup'],
+    nextAction: "Start on Starter. It costs nothing while AIBOT is in demo, and nothing is missing from it.",
+    tips: [
+      "Move up a plan when you outgrow the volume, not when you want a feature.",
+      "No card is taken while the product is in demo.",
+    ],
   },
   {
     route: '/login',
@@ -128,6 +185,10 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     surface: 'public',
     summary: 'Signing in to a workspace you already have.',
     suggestedRoutes: ['/signup'],
+    nextAction: "Sign in. The dashboard opens on what needs attention rather than on a welcome screen.",
+    tips: [
+      "A forgotten password is reset by email — nobody at AIBOT can read or set it for you.",
+    ],
   },
   {
     route: '/signup',
@@ -136,6 +197,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     summary:
       'Creating a workspace. Name, workspace, email, password — then a confirmation link, and you are in.',
     suggestedRoutes: ['/login', '/pricing'],
+    nextAction: "Create the workspace, then brief one agent. That is the whole of the setup.",
+    tips: [
+      "A workspace is yours alone. Nothing you put in it is visible outside it.",
+      "The name is not permanent; Settings changes it later.",
+    ],
   },
   {
     route: '/dashboard',
@@ -163,6 +229,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Want me to point at the thing that actually needs you?',
     suggestedRoutes: ['/leads', '/campaigns', '/follow-ups'],
+    nextAction: "Work the attention list from the top. It is ordered by what costs you money if it is ignored.",
+    tips: [
+      "Test calls are excluded from every figure here, so nothing on this page is flattered by your own experiments.",
+      "An empty dashboard is not a broken one. It means nothing has run yet.",
+    ],
   },
   {
     route: '/leads',
@@ -190,6 +261,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Want me to explain what these statuses mean?',
     suggestedRoutes: ['/campaigns', '/calls'],
+    nextAction: "Import your list, then attach it to a campaign. A lead does nothing until a campaign hands it to an agent.",
+    tips: [
+      "Duplicate and invalid rows are flagged before anything is saved, not after.",
+      "Your column names do not have to match AIBOT's. Map them once at import.",
+    ],
   },
   {
     route: '/agents',
@@ -216,6 +292,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'An agent is only as good as its brief. Want a hand writing one?',
     suggestedRoutes: ['/campaigns'],
+    nextAction: "Write the brief, then run a demo call and listen to it. A weak brief is audible in about ten seconds.",
+    tips: [
+      "One agent can run any number of campaigns. Make it the voice, not the pitch.",
+      "Manner matters as much as purpose — it is the difference between persistent and pushy.",
+    ],
   },
   {
     route: '/campaigns',
@@ -243,6 +324,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'This is where the interesting part starts.',
     suggestedRoutes: ['/leads', '/agents', '/calls'],
+    nextAction: "Run a test call before a single real lead is contacted. The readiness panel lists what is still missing.",
+    tips: [
+      "Test calls are excluded from campaign analytics, so they never flatter your numbers.",
+      "The script is a spine, not a cage. The agent follows the answers it actually gets.",
+    ],
   },
   {
     route: '/calls',
@@ -266,6 +352,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Open any call — the transcript is the whole conversation, not a log.',
     suggestedRoutes: ['/follow-ups', '/analytics'],
+    nextAction: "Open a call and read the transcript against its outcome. That comparison is what you edit the brief from.",
+    tips: [
+      "The outcome comes from what was said, not from how long the call ran.",
+      "Simulated calls are labelled on every row.",
+    ],
   },
   {
     route: '/follow-ups',
@@ -289,6 +380,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Anything marked Due has been waiting longer than it should.',
     suggestedRoutes: ['/whatsapp', '/leads'],
+    nextAction: "Clear the overdue ones first. Send is on the row, so working the queue never means leaving it.",
+    tips: [
+      "Every follow-up was written at the end of a call, from what was said in it.",
+      "A no-answer queues a follow-up rather than quietly dropping the lead.",
+    ],
   },
   {
     route: '/whatsapp',
@@ -312,6 +408,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'These are real stored messages — read one before you send it.',
     suggestedRoutes: ['/follow-ups'],
+    nextAction: "Read a thread before connecting anything. What is on screen is exactly what would be sent.",
+    tips: [
+      "Messages are previewed, not delivered, until a provider is connected.",
+      "The wording comes from the call it followed, not from a template.",
+    ],
   },
   {
     route: '/analytics',
@@ -335,6 +436,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
     glossary: GLOSSARY_SHARED,
     nudge: 'Numbers are cute. Knowing which one to act on is better.',
     suggestedRoutes: ['/campaigns', '/calls'],
+    nextAction: "Compare outcomes by agent and by campaign. That is the comparison worth editing a brief against.",
+    tips: [
+      "Test calls are excluded everywhere here, so the numbers are about your leads.",
+      "A low qualified rate is usually the campaign's targeting rather than the agent's manner.",
+    ],
   },
   {
     route: '/settings',
@@ -352,6 +458,11 @@ export const ZEMO_PAGES: readonly ZemoPageContext[] = [
       },
     ],
     suggestedRoutes: ['/dashboard'],
+    nextAction: "Connect a provider when you are ready for real calls. Until then everything runs simulated and labelled.",
+    tips: [
+      "What an agent says lives on the agent and the campaign, not here.",
+      "The product tour can be taken again from this page whenever you like.",
+    ],
   },
 ];
 
