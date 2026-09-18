@@ -1,0 +1,57 @@
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.startButton,
+.stopButton {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.startButton {
+  background: var(--color-primary);
+  color: white;
+}
+
+.startButton:hover:not(:disabled) {
+  background: var(--color-primary-hover, #0056b3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.startButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.startButton:disabled {
+  background: var(--color-border);
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.stopButton {
+  background: var(--color-danger, #dc3545);
+  color: white;
+}
+
+.stopButton:hover {
+  background: var(--color-danger-hover, #c82333);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.stopButton:active {
+  transform: scale(0.98);
+}
