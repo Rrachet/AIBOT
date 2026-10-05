@@ -33,6 +33,11 @@ export function ZemoPanel({
   voiceError,
   onVoiceStart,
   onVoiceStop,
+  voiceOutputSupported,
+  voiceOutputEnabled,
+  voiceOutputStatus,
+  onVoiceOutputToggle,
+  onVoiceOutputStop,
 }: {
   messages: ZemoMessage[];
   mood: ZemoMood;
@@ -50,6 +55,11 @@ export function ZemoPanel({
   voiceError: string | null;
   onVoiceStart: () => void;
   onVoiceStop: () => void;
+  voiceOutputSupported: boolean;
+  voiceOutputEnabled: boolean;
+  voiceOutputStatus: 'unsupported' | 'idle' | 'speaking' | 'paused' | 'error';
+  onVoiceOutputToggle: () => void;
+  onVoiceOutputStop: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -98,9 +108,22 @@ export function ZemoPanel({
           <strong>Zemo</strong>
           <span>Your AIBOT sidekick</span>
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close Zemo">
-          <Icon name="close" size={16} />
-        </button>
+        <div className="zemo-head-actions">
+          {voiceOutputSupported ? (
+            <button
+              type="button"
+              className={`icon-button${voiceOutputEnabled ? ' is-voice-on' : ''}`}
+              onClick={voiceOutputStatus === 'speaking' ? onVoiceOutputStop : onVoiceOutputToggle}
+              aria-label={voiceOutputStatus === 'speaking' ? 'Stop Zemo voice' : voiceOutputEnabled ? 'Turn Zemo voice off' : 'Turn Zemo voice on'}
+              title={voiceOutputStatus === 'speaking' ? 'Stop Zemo voice' : voiceOutputEnabled ? 'Turn Zemo voice off' : 'Turn Zemo voice on'}
+            >
+              <span className="zemo-voice-indicator" aria-hidden="true">●</span>
+            </button>
+          ) : null}
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close Zemo">
+            <Icon name="close" size={16} />
+          </button>
+        </div>
       </header>
 
       <div className="zemo-thread" ref={scrollRef} aria-live="polite" aria-busy={busy}>
