@@ -3743,6 +3743,61 @@ a.quick-card:hover {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
+.zemo-voice-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.zemo-voice-button:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+
+.zemo-voice-button.is-listening {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  animation: zemo-voice-pulse 1.2s ease-in-out infinite;
+}
+
+.zemo-voice-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@keyframes zemo-voice-pulse {
+  50% {
+    box-shadow: 0 0 0 4px var(--accent-ring);
+  }
+}
+
+.zemo-voice-preview,
+.zemo-voice-error {
+  margin: 0;
+  padding: 7px 12px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.zemo-voice-preview {
+  color: var(--muted);
+}
+
+.zemo-voice-error {
+  color: var(--red);
+  background: var(--red-soft);
+  border-top: 1px solid var(--red-line);
+}
+
 .zemo-send {
   display: inline-flex;
   align-items: center;
