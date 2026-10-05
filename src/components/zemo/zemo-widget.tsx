@@ -16,6 +16,7 @@ import {
 import { allowedAction, type ZemoAction, type ZemoInputSource } from './zemo-intent';
 import { useVoicePreviewState } from '@/components/speech/voice-preview-state';
 import { useSpeechRecognition } from '@/components/speech/use-speech-recognition';
+import { useSpeechSynthesis } from '@/components/speech/use-speech-synthesis';
 import { useTourRun } from './tour/tour-controller';
 import { TourDone, TourIntro } from './tour/tour-intro';
 import { tourFor } from './tour/tour-steps';
@@ -106,6 +107,8 @@ export function ZemoWidget({
   const voice = useVoicePreviewState();
 
   const sendRef = useRef<(text: string, source?: ZemoInputSource) => Promise<void>>(async () => {});
+
+  const voiceOutput = useSpeechSynthesis();
 
   const voiceInput = useSpeechRecognition({
     lang: 'en-IN',
@@ -336,6 +339,14 @@ export function ZemoWidget({
         const reply = await provider.respond({ text, source, context }, messages);
         setMessages((current) => [...current, ...reply.messages]);
 
+        const spoken = reply.messages
+          .filter((message) => message.role === 'zemo')
+          .map((message) => message.text)
+          .join(' ');
+        if (spoken && (source === 'voice' || voiceOutput.enabled)) {
+          voiceOutput.speak(spoken);
+        }
+
         // "Show me the tour" is answered by running it, not describing it —
         // they asked in words, so the offer does not need pressing twice.
         if (reply.messages.some((message) => message.action?.kind === 'start-tour')) {
@@ -345,7 +356,7 @@ export function ZemoWidget({
         setBusy(false);
       }
     },
-    [context, messages, startTour, surface]
+    [context, messages, startTour, surface, voiceOutput]
   );
 
   useEffect(() => {
@@ -439,6 +450,11 @@ export function ZemoWidget({
             voiceError={voiceInput.error}
             onVoiceStart={voiceInput.start}
             onVoiceStop={voiceInput.stop}
+            voiceOutputSupported={voiceOutput.supported}
+            voiceOutputEnabled={voiceOutput.enabled}
+            voiceOutputStatus={voiceOutput.status}
+            onVoiceOutputToggle={() => voiceOutput.setEnabled(!voiceOutput.enabled)}
+            onVoiceOutputStop={voiceOutput.stop}
           />
         ) : null}
 
