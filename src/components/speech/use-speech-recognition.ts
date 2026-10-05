@@ -91,6 +91,14 @@ export function useSpeechRecognition({
 
   useEffect(() => {
     mountedRef.current = true;
+    const Recognition = constructorForWindow();
+    if (Recognition) {
+      setState((current) =>
+        current.status === 'unsupported'
+          ? { ...current, status: 'idle', error: null }
+          : current
+      );
+    }
     return () => {
       mountedRef.current = false;
       recognitionRef.current?.abort();
