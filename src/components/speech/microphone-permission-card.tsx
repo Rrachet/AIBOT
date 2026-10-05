@@ -59,9 +59,9 @@ export function MicrophonePermissionCard({
         <div className={styles.privacy}>
           <p className={styles.privacyTitle}>Privacy & Data</p>
           <ul className={styles.privacyList}>
-            <li>Your audio is processed locally in your browser</li>
-            <li>No recordings are stored or sent to servers</li>
-            <li>Your conversation text is processed according to our privacy policy</li>
+            <li>The browser handles microphone capture and speech recognition</li>
+            <li>AIBOT does not record or store raw microphone audio</li>
+            <li>Only the recognized text is sent into Zemo's normal conversation flow</li>
             <li>You can switch to text input at any time</li>
           </ul>
         </div>

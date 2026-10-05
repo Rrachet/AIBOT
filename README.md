@@ -242,7 +242,7 @@ docs/
 - Calling provider integration
 - WhatsApp provider integration
 - Production-grade speech providers
-- Voice-enabled Zemo
+- Voice-enabled Zemo (browser speech recognition)
 - LLM-powered Zemo reasoning
 - Confirmation-based product actions
 

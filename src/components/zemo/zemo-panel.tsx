@@ -27,6 +27,12 @@ export function ZemoPanel({
   onSuggestion,
   onAction,
   onFormDone,
+  voiceSupported,
+  voiceStatus,
+  voiceTranscript,
+  voiceError,
+  onVoiceStart,
+  onVoiceStop,
 }: {
   messages: ZemoMessage[];
   mood: ZemoMood;
@@ -38,6 +44,12 @@ export function ZemoPanel({
   /** Runs an action the person pressed. Navigation is a link and handles itself. */
   onAction: (action: ZemoAction) => void;
   onFormDone: (summary: string) => void;
+  voiceSupported: boolean;
+  voiceStatus: 'unsupported' | 'idle' | 'listening' | 'error';
+  voiceTranscript: string;
+  voiceError: string | null;
+  onVoiceStart: () => void;
+  onVoiceStop: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -149,10 +161,24 @@ export function ZemoPanel({
           maxLength={400}
           autoComplete="off"
         />
-        <button type="submit" className="zemo-send" aria-label="Send">
+        <button
+          type="button"
+          className={`zemo-voice-button${voiceStatus === 'listening' ? ' is-listening' : ''}`}
+          onClick={voiceStatus === 'listening' ? onVoiceStop : onVoiceStart}
+          disabled={!voiceSupported || busy}
+          aria-label={voiceStatus === 'listening' ? 'Stop voice input' : 'Use voice input'}
+          title={voiceSupported ? 'Use voice input' : 'Voice input is not supported by this browser'}
+        >
+          <Icon name="mic" size={15} />
+        </button>
+        <button type="submit" className="zemo-send" aria-label="Send" disabled={busy}>
           <Icon name="send" size={15} />
         </button>
       </form>
+      {voiceStatus === 'listening' && voiceTranscript ? (
+        <p className="zemo-voice-preview" aria-live="polite">Listening: {voiceTranscript}</p>
+      ) : null}
+      {voiceError ? <p className="zemo-voice-error" role="alert">{voiceError}</p> : null}
     </div>
   );
 }

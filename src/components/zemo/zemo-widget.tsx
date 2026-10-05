@@ -15,6 +15,7 @@ import {
 } from './zemo-provider';
 import { allowedAction, type ZemoAction, type ZemoInputSource } from './zemo-intent';
 import { useVoicePreviewState } from '@/components/speech/voice-preview-state';
+import { useSpeechRecognition } from '@/components/speech/use-speech-recognition';
 import { useTourRun } from './tour/tour-controller';
 import { TourDone, TourIntro } from './tour/tour-intro';
 import { tourFor } from './tour/tour-steps';
@@ -103,6 +104,15 @@ export function ZemoWidget({
    * were inclined to.
    */
   const voice = useVoicePreviewState();
+
+  const sendRef = useRef<(text: string, source?: ZemoInputSource) => Promise<void>>(async () => {});
+
+  const voiceInput = useSpeechRecognition({
+    lang: 'en-IN',
+    onFinalTranscript: (text) => {
+      void sendRef.current(text, 'voice');
+    },
+  });
 
   /**
    * The conversation last played, kept once the dialog has closed.
@@ -338,6 +348,10 @@ export function ZemoWidget({
     [context, messages, startTour, surface]
   );
 
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
   /**
    * Performs an action the person pressed.
    *
@@ -419,6 +433,12 @@ export function ZemoWidget({
             onAction={perform}
             onClose={closePanel}
             onFormDone={onFormDone}
+            voiceSupported={voiceInput.supported}
+            voiceStatus={voiceInput.status}
+            voiceTranscript={voiceInput.transcript}
+            voiceError={voiceInput.error}
+            onVoiceStart={voiceInput.start}
+            onVoiceStop={voiceInput.stop}
           />
         ) : null}
 

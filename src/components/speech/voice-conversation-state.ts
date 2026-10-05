@@ -61,9 +61,9 @@ export const IDLE_STATE: VoiceConversationState = Object.freeze({
   permission: 'idle',
   conversation: 'idle',
   error: null,
-  ttsSupported: true,
-  sttSupported: true,
-  permissionQuerySupported: true,
+  ttsSupported: false,
+  sttSupported: false,
+  permissionQuerySupported: false,
 });
 
 /**
@@ -79,7 +79,7 @@ export async function initializeVoiceState(): Promise<VoiceConversationState> {
   // Check STT support
   state.sttSupported =
     typeof window !== 'undefined' &&
-    !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition;
+    !!(window.SpeechRecognition ?? window.webkitSpeechRecognition);
 
   // Check permission query support
   state.permissionQuerySupported =
@@ -113,6 +113,13 @@ export async function initializeVoiceState(): Promise<VoiceConversationState> {
  */
 export async function requestMicrophonePermission(): Promise<VoiceConversationState> {
   const state: VoiceConversationState = { ...IDLE_STATE };
+
+  if (!statefulSpeechRecognitionSupported()) {
+    state.sttSupported = false;
+    state.permission = 'unsupported';
+    state.error = 'Your browser does not support voice input.';
+    return Object.freeze(state);
+  }
 
   if (!navigator.mediaDevices?.getUserMedia) {
     state.permission = 'unsupported';
@@ -295,6 +302,10 @@ export function voiceAvailable(state: VoiceConversationState): boolean {
 /**
  * Check whether to show the permission request card.
  */
+function statefulSpeechRecognitionSupported(): boolean {
+  return typeof window !== 'undefined' && !!(window.SpeechRecognition ?? window.webkitSpeechRecognition);
+}
+
 export function shouldShowPermissionCard(state: VoiceConversationState): boolean {
   return (
     state.permission === 'idle' &&
