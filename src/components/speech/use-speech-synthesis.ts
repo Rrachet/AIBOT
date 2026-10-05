@@ -34,10 +34,7 @@ export function useSpeechSynthesis() {
       if (!enabled || !browserSupported() || !text.trim()) return false;
 
       const clean = text
-const clean = text
-  .replace(/https?:\/\/\S+/g, '')
-  .replace(/[*_#`]/g, '')
-  .trim();
+        .replace(/https?:\/\/\S+/g, '')
         .replace(/[*_#`]/g, '')
         .trim();
 
