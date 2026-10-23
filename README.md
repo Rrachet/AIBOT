@@ -195,6 +195,38 @@ The project treats regression coverage as part of the product architecture, not 
 
 ---
 
+## 🧰 Getting started
+
+**Requirements:** Node.js 24 (see `engines` in `package.json`) and a [Supabase](https://supabase.com) project.
+
+```bash
+git clone https://github.com/Rrachet/AIBOT.git
+cd AIBOT
+npm ci
+cp .env.example .env.local
+```
+
+1. In `.env.local`, fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` from the Supabase dashboard (Connect). The secret key is server-only and must never be exposed to the browser.
+2. Apply the schema: run the files in `supabase/migrations/` in filename order, either with the Supabase CLI (`supabase link` then `supabase db push`) or by pasting them into the Supabase SQL editor.
+3. Start the app:
+
+```bash
+npm run dev          # http://localhost:3000
+```
+
+The voice, WhatsApp and AI provider variables in `.env.example` are optional. With `SPEECH_PROVIDER` unset, call previews use the voices already installed in your browser and no request leaves your machine.
+
+### Checks
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm run build        # production build
+```
+
+The same two checks run in GitHub Actions on every pull request (`.github/workflows/ci.yml`).
+
+---
+
 ## 🗂️ Repository structure
 
 ```text
@@ -265,3 +297,9 @@ Conversations, outcomes, permissions, data and actions remain explicit and testa
 Product Builder · Product Analyst · Full-Stack Engineer
 
 [GitHub](https://github.com/Rrachet) · [LinkedIn](https://in.linkedin.com/in/amarnath-mishra) · [AIBOT](https://aibot-amar-proj.vercel.app)
+
+---
+
+## License
+
+[MIT](LICENSE) © Amarnath Mishra
